@@ -14,6 +14,8 @@ import {
   Upload,
   X,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Filter,
   Mail,
   MessageSquare,
@@ -1040,6 +1042,8 @@ export default function PersonasPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const fetchPersonas = useCallback(async () => {
     try {
@@ -1066,6 +1070,11 @@ export default function PersonasPage() {
   const uniqueRoles = [...new Map(personas.flatMap((p) => p.roles || []).map((r) => [r.id, r])).values()].sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
   const activeFilterCount = [filterCountry, filterLanguage, filterTag, filterRole, filterAccount].filter((f) => f !== "all").length;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole, filterAccount, sortBy, pageSize]);
 
   // Client-side filtering and sorting
   const filteredPersonas = personas
@@ -1122,6 +1131,14 @@ export default function PersonasPage() {
           return 0;
       }
     });
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredPersonas.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedPersonas = filteredPersonas.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize
+  );
 
   return (
     <div className="space-y-4">
@@ -1430,7 +1447,7 @@ export default function PersonasPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPersonas.map((persona) => (
+              {paginatedPersonas.map((persona) => (
                 <PersonaRow
                   key={persona.id}
                   persona={persona}
@@ -1445,13 +1462,80 @@ export default function PersonasPage() {
       {/* Grid View */}
       {!isLoading && !error && filteredPersonas.length > 0 && viewMode === "grid" && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredPersonas.map((persona) => (
+          {paginatedPersonas.map((persona) => (
             <PersonaCard
               key={persona.id}
               persona={persona}
               onClick={() => router.push(`/personas/${persona.id}`)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && !error && filteredPersonas.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Sayfa başına:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger className="h-8 w-[75px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="ml-2">
+              {(safePage - 1) * pageSize + 1}-{Math.min(safePage * pageSize, filteredPersonas.length)} / {filteredPersonas.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage(1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 -ml-2.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="px-3 text-sm font-medium">
+              {safePage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+            >
+              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 -ml-2.5" />
+            </Button>
+          </div>
         </div>
       )}
 
