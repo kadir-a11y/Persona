@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -253,17 +254,15 @@ const defaultFormData: CreateFormData = {
 
 function PersonaRow({
   persona,
-  onClick,
 }: {
   persona: Persona;
-  onClick: () => void;
 }) {
   return (
     <TableRow
-      className="cursor-pointer hover:bg-muted/50"
-      onClick={onClick}
+      className="cursor-pointer hover:bg-muted/50 relative"
     >
       <TableCell>
+        <Link href={`/personas/${persona.id}`} className="absolute inset-0 z-10" />
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             {persona.avatarUrl && (
@@ -351,15 +350,13 @@ function PersonaRow({
 
 function PersonaCard({
   persona,
-  onClick,
 }: {
   persona: Persona;
-  onClick: () => void;
 }) {
   return (
+    <Link href={`/personas/${persona.id}`}>
     <Card
       className="cursor-pointer transition-shadow hover:shadow-md"
-      onClick={onClick}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
@@ -425,6 +422,7 @@ function PersonaCard({
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 }
 
@@ -1024,26 +1022,76 @@ function BulkCreateDialog({
 // Main Page
 // ---------------------------------------------------------------------------
 
-export default function PersonasPage() {
+export default function PersonasPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+      <PersonasPage />
+    </Suspense>
+  );
+}
+
+function PersonasPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [filterGender, setFilterGender] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterCountry, setFilterCountry] = useState<string>("all");
-  const [filterLanguage, setFilterLanguage] = useState<string>("all");
-  const [filterTag, setFilterTag] = useState<string>("all");
-  const [filterRole, setFilterRole] = useState<string>("all");
-  const [filterAccount, setFilterAccount] = useState<string>("all");
+
+  // Read filters from URL search params (persisted across navigation)
+  const search = searchParams.get("q") || "";
+  const filterGender = searchParams.get("gender") || "all";
+  const filterStatus = searchParams.get("status") || "all";
+  const filterCountry = searchParams.get("country") || "all";
+  const filterLanguage = searchParams.get("lang") || "all";
+  const filterTag = searchParams.get("tag") || "all";
+  const filterRole = searchParams.get("role") || "all";
+  const filterAccount = searchParams.get("account") || "all";
+  const sortBy = searchParams.get("sort") || "newest";
+  const viewMode = (searchParams.get("view") || "table") as "table" | "grid";
+  const currentPage = parseInt(searchParams.get("page") || "1", 10);
+  const pageSize = parseInt(searchParams.get("size") || "25", 10);
+
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<string>("newest");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [searchInput, setSearchInput] = useState(search);
+
+  // Debounce search input to URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearch(searchInput);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper to update URL search params
+  const updateParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === "" || value === "all" || (key === "sort" && value === "newest") || (key === "view" && value === "table") || (key === "page" && value === "1") || (key === "size" && value === "25")) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+    const qs = params.toString();
+    router.replace(`/personas${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router]);
+
+  const setSearch = (v: string) => updateParams({ q: v, page: "1" });
+  const setFilterGender = (v: string) => updateParams({ gender: v, page: "1" });
+  const setFilterStatus = (v: string) => updateParams({ status: v, page: "1" });
+  const setFilterCountry = (v: string) => updateParams({ country: v, page: "1" });
+  const setFilterLanguage = (v: string) => updateParams({ lang: v, page: "1" });
+  const setFilterTag = (v: string) => updateParams({ tag: v, page: "1" });
+  const setFilterRole = (v: string) => updateParams({ role: v, page: "1" });
+  const setFilterAccount = (v: string) => updateParams({ account: v, page: "1" });
+  const setSortBy = (v: string) => updateParams({ sort: v, page: "1" });
+  const setViewMode = (v: string) => updateParams({ view: v });
+  const setCurrentPage = (v: number) => updateParams({ page: String(v) });
+  const setPageSize = (v: number) => updateParams({ size: String(v), page: "1" });
 
   const fetchPersonas = useCallback(async () => {
     try {
@@ -1071,10 +1119,7 @@ export default function PersonasPage() {
 
   const activeFilterCount = [filterCountry, filterLanguage, filterTag, filterRole, filterAccount].filter((f) => f !== "all").length;
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole, filterAccount, sortBy, pageSize]);
+  // Filters now use URL search params - page reset happens in updateParams
 
   // Client-side filtering and sorting
   const filteredPersonas = personas
@@ -1173,8 +1218,8 @@ export default function PersonasPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Persona, ülke, şehir, etiket veya rol ara..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -1415,14 +1460,8 @@ export default function PersonasPage() {
               size="sm"
               className="mt-3"
               onClick={() => {
-                setSearch("");
-                setFilterGender("all");
-                setFilterStatus("all");
-                setFilterCountry("all");
-                setFilterLanguage("all");
-                setFilterTag("all");
-                setFilterRole("all");
-                setFilterAccount("all");
+                setSearchInput("");
+                router.replace("/personas", { scroll: false });
               }}
             >
               Filtreleri Temizle
@@ -1451,7 +1490,6 @@ export default function PersonasPage() {
                 <PersonaRow
                   key={persona.id}
                   persona={persona}
-                  onClick={() => router.push(`/personas/${persona.id}`)}
                 />
               ))}
             </TableBody>
@@ -1466,7 +1504,6 @@ export default function PersonasPage() {
             <PersonaCard
               key={persona.id}
               persona={persona}
-              onClick={() => router.push(`/personas/${persona.id}`)}
             />
           ))}
         </div>
@@ -1509,7 +1546,7 @@ export default function PersonasPage() {
               size="icon"
               className="h-8 w-8"
               disabled={safePage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -1521,7 +1558,7 @@ export default function PersonasPage() {
               size="icon"
               className="h-8 w-8"
               disabled={safePage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
