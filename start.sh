@@ -44,26 +44,7 @@ node -e "
 
 # Seed playbooks if needed
 echo "Checking playbooks..."
-node -e "
-  require('tsx/cjs');
-  const { db } = require('./src/lib/db/index.ts');
-  const { projectPlaybooks } = require('./src/lib/db/schema/index.ts');
-  db.select().from(projectPlaybooks).limit(1).then(rows => {
-    if (rows.length === 0) {
-      console.log('No playbooks found, seeding...');
-      import('./src/lib/db/seed-playbooks.ts').then(() => {
-        console.log('Playbook seed complete.');
-        process.exit(0);
-      });
-    } else {
-      console.log('Playbooks already seeded.');
-      process.exit(0);
-    }
-  }).catch(err => {
-    console.error('Playbook seed check error:', err.message);
-    process.exit(0);
-  });
-" 2>&1 || echo "Warning: playbook seed check failed"
+npx tsx src/lib/db/seed-playbooks.ts 2>&1 || echo "Warning: playbook seed failed"
 
 echo "Starting Next.js server..."
 exec node server.js

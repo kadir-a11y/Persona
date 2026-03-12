@@ -12,6 +12,14 @@ async function seedPlaybooks() {
 
   console.log("Playbook seed başlatılıyor...");
 
+  // Zaten playbook var mı kontrol et
+  const existing = await db.select().from(projectPlaybooks).limit(1);
+  if (existing.length > 0) {
+    console.log("Playbook'lar zaten mevcut, atlanıyor.");
+    await client.end();
+    return;
+  }
+
   // Admin kullanıcıyı bul
   const [admin] = await db
     .select()
