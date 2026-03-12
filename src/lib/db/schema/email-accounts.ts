@@ -1,22 +1,21 @@
 import { pgTable, uuid, varchar, text, boolean, timestamp } from "drizzle-orm/pg-core";
 import { personas } from "./personas";
 
-export const forumAccounts = pgTable("forum_accounts", {
+export const emailAccounts = pgTable("email_accounts", {
   id: uuid("id").defaultRandom().primaryKey(),
   personaId: uuid("persona_id")
     .notNull()
     .references(() => personas.id, { onDelete: "cascade" }),
-  portalName: varchar("portal_name", { length: 255 }).notNull(),
-  portalUrl: varchar("portal_url", { length: 500 }),
-  username: varchar("username", { length: 255 }),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
+  provider: varchar("provider", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
   password: text("password"),
-  apiEndpoint: text("api_endpoint"),
+  phone: varchar("phone", { length: 50 }),
+  recoveryEmail: varchar("recovery_email", { length: 255 }),
+  smtpHost: varchar("smtp_host", { length: 255 }),
+  smtpPort: varchar("smtp_port", { length: 10 }),
+  imapHost: varchar("imap_host", { length: 255 }),
+  imapPort: varchar("imap_port", { length: 10 }),
   apiKey: text("api_key"),
-  apiSecretKey: text("api_secret_key"),
-  accessToken: text("access_token"),
-  accessTokenSecret: text("access_token_secret"),
   notes: text("notes"),
   isActive: boolean("is_active").default(true),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),

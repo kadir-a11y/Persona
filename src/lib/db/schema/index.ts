@@ -4,6 +4,7 @@ export { users } from "./users";
 export { personas } from "./personas";
 export { socialAccounts } from "./social-accounts";
 export { forumAccounts } from "./forum-accounts";
+export { emailAccounts } from "./email-accounts";
 export { roleCategories } from "./role-categories";
 export { roles } from "./roles";
 export { personaRoles } from "./persona-roles";
@@ -24,6 +25,7 @@ import { users } from "./users";
 import { personas } from "./personas";
 import { socialAccounts } from "./social-accounts";
 import { forumAccounts } from "./forum-accounts";
+import { emailAccounts } from "./email-accounts";
 import { roleCategories } from "./role-categories";
 import { roles } from "./roles";
 import { personaRoles } from "./persona-roles";
@@ -60,6 +62,7 @@ export const personasRelations = relations(personas, ({ one, many }) => ({
   }),
   socialAccounts: many(socialAccounts),
   forumAccounts: many(forumAccounts),
+  emailAccounts: many(emailAccounts),
   contentItems: many(contentItems),
   personaTags: many(personaTags),
   personaRoles: many(personaRoles),
@@ -79,6 +82,14 @@ export const socialAccountsRelations = relations(socialAccounts, ({ one }) => ({
 export const forumAccountsRelations = relations(forumAccounts, ({ one }) => ({
   persona: one(personas, {
     fields: [forumAccounts.personaId],
+    references: [personas.id],
+  }),
+}));
+
+// ── Email accounts relations ────────────────────────────────────────
+export const emailAccountsRelations = relations(emailAccounts, ({ one }) => ({
+  persona: one(personas, {
+    fields: [emailAccounts.personaId],
     references: [personas.id],
   }),
 }));

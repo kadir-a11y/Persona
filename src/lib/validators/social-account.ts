@@ -8,7 +8,6 @@ export const socialAccountCreateSchema = z.object({
   platformEmail: z.string().max(255).optional(),
   platformPhone: z.string().max(50).optional(),
   platformPassword: z.string().optional(),
-  emailPassword: z.string().optional(),
   apiEndpoint: z.string().optional(),
   apiKey: z.string().optional(),
   apiSecretKey: z.string().optional(),

@@ -95,7 +95,6 @@ interface SocialAccount {
   platformEmail: string | null;
   platformPhone: string | null;
   platformPassword: string | null;
-  emailPassword: string | null;
   apiEndpoint: string | null;
   apiKey: string | null;
   apiSecretKey: string | null;
@@ -114,12 +113,29 @@ interface ForumAccount {
   email: string | null;
   phone: string | null;
   password: string | null;
-  emailPassword: string | null;
   apiEndpoint: string | null;
   apiKey: string | null;
   apiSecretKey: string | null;
   accessToken: string | null;
   accessTokenSecret: string | null;
+  notes: string | null;
+  isActive: boolean | null;
+  lastUsedAt: string | null;
+  createdAt: string | null;
+}
+
+interface EmailAccount {
+  id: string;
+  provider: string;
+  email: string;
+  password: string | null;
+  phone: string | null;
+  recoveryEmail: string | null;
+  smtpHost: string | null;
+  smtpPort: string | null;
+  imapHost: string | null;
+  imapPort: string | null;
+  apiKey: string | null;
   notes: string | null;
   isActive: boolean | null;
   lastUsedAt: string | null;
@@ -169,6 +185,7 @@ interface Persona {
   tags: Tag[];
   socialAccounts: SocialAccount[];
   forumAccounts: ForumAccount[];
+  emailAccounts: EmailAccount[];
 }
 
 interface EditFormData {
@@ -932,7 +949,6 @@ function AddSocialAccountDialog({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
   const [apiEndpoint, setApiEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiSecretKey, setApiSecretKey] = useState("");
@@ -948,7 +964,6 @@ function AddSocialAccountDialog({
     setEmail("");
     setPhone("");
     setPassword("");
-    setEmailPassword("");
     setApiEndpoint("");
     setApiKey("");
     setApiSecretKey("");
@@ -974,7 +989,6 @@ function AddSocialAccountDialog({
           platformEmail: email.trim() || undefined,
           platformPhone: phone.trim() || undefined,
           platformPassword: password || undefined,
-          emailPassword: emailPassword || undefined,
           apiEndpoint: apiEndpoint.trim() || undefined,
           apiKey: apiKey.trim() || undefined,
           apiSecretKey: apiSecretKey.trim() || undefined,
@@ -1003,16 +1017,16 @@ function AddSocialAccountDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Sosyal Medya Hesabı Ekle</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Platform</Label>
+        <form onSubmit={handleSubmit} className="space-y-3 overflow-y-auto pr-1 flex-1">
+          <div className="space-y-1">
+            <Label className="text-xs">Platform</Label>
             <Select value={platform} onValueChange={setPlatform} disabled={isSubmitting}>
-              <SelectTrigger>
+              <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1023,131 +1037,60 @@ function AddSocialAccountDialog({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="social-username">Kullanıcı Adı</Label>
-            <Input
-              id="social-username"
-              placeholder="@kullanıcıadı"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="social-email">E-posta</Label>
-            <Input
-              id="social-email"
-              type="email"
-              placeholder="hesap@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="social-phone">Telefon</Label>
-            <Input
-              id="social-phone"
-              placeholder="+90 5xx xxx xx xx"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="social-password">Şifre</Label>
-            <div className="relative">
-              <Input
-                id="social-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Hesap şifresi"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Kullanıcı Adı</Label>
+              <Input className="h-8 text-sm" placeholder="@kullanıcıadı" value={username} onChange={(e) => setUsername(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Şifre</Label>
+              <div className="relative">
+                <Input className="h-8 text-sm pr-8" type={showPassword ? "text" : "password"} placeholder="Hesap şifresi" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="social-email-password">E-posta Şifresi</Label>
-            <Input
-              id="social-email-password"
-              type={showPassword ? "text" : "password"}
-              placeholder="E-posta hesap şifresi"
-              value={emailPassword}
-              onChange={(e) => setEmailPassword(e.target.value)}
-              disabled={isSubmitting}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">E-posta</Label>
+              <Input className="h-8 text-sm" type="email" placeholder="hesap@email.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" placeholder="+90 5xx" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isSubmitting} />
+            </div>
           </div>
 
           <Separator />
           <p className="text-xs font-medium text-muted-foreground">API Bilgileri (opsiyonel)</p>
 
-          <div className="space-y-2">
-            <Label htmlFor="social-api-endpoint">API Endpoint</Label>
-            <Input
-              id="social-api-endpoint"
-              placeholder="https://api.twitter.com/2"
-              value={apiEndpoint}
-              onChange={(e) => setApiEndpoint(e.target.value)}
-              disabled={isSubmitting}
-            />
+          <div className="space-y-1">
+            <Label className="text-xs">API Endpoint</Label>
+            <Input className="h-8 text-sm" placeholder="https://api.twitter.com/2" value={apiEndpoint} onChange={(e) => setApiEndpoint(e.target.value)} disabled={isSubmitting} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="social-api-key">API Key</Label>
-              <Input
-                id="social-api-key"
-                placeholder="API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                disabled={isSubmitting}
-              />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">API Key</Label>
+              <Input className="h-8 text-sm" placeholder="API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} disabled={isSubmitting} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="social-api-secret">API Secret Key</Label>
-              <Input
-                id="social-api-secret"
-                placeholder="API Secret Key"
-                value={apiSecretKey}
-                onChange={(e) => setApiSecretKey(e.target.value)}
-                disabled={isSubmitting}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">API Secret Key</Label>
+              <Input className="h-8 text-sm" placeholder="API Secret Key" value={apiSecretKey} onChange={(e) => setApiSecretKey(e.target.value)} disabled={isSubmitting} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="social-access-token">Access Token</Label>
-              <Input
-                id="social-access-token"
-                placeholder="Access Token"
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                disabled={isSubmitting}
-              />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Access Token</Label>
+              <Input className="h-8 text-sm" placeholder="Access Token" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} disabled={isSubmitting} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="social-access-secret">Access Token Secret</Label>
-              <Input
-                id="social-access-secret"
-                placeholder="Access Token Secret"
-                value={accessTokenSecret}
-                onChange={(e) => setAccessTokenSecret(e.target.value)}
-                disabled={isSubmitting}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">Access Token Secret</Label>
+              <Input className="h-8 text-sm" placeholder="Access Token Secret" value={accessTokenSecret} onChange={(e) => setAccessTokenSecret(e.target.value)} disabled={isSubmitting} />
             </div>
           </div>
 
@@ -1395,7 +1338,6 @@ function SocialAccountCard({
     platformEmail: account.platformEmail || "",
     platformPhone: account.platformPhone || "",
     platformPassword: account.platformPassword || "",
-    emailPassword: account.emailPassword || "",
     apiEndpoint: account.apiEndpoint || "",
     apiKey: account.apiKey || "",
     apiSecretKey: account.apiSecretKey || "",
@@ -1427,7 +1369,6 @@ function SocialAccountCard({
           platformEmail: editData.platformEmail || undefined,
           platformPhone: editData.platformPhone || undefined,
           platformPassword: editData.platformPassword || undefined,
-          emailPassword: editData.emailPassword || undefined,
           apiEndpoint: editData.apiEndpoint || undefined,
           apiKey: editData.apiKey || undefined,
           apiSecretKey: editData.apiSecretKey || undefined,
@@ -1476,15 +1417,10 @@ function SocialAccountCard({
               <Input className="h-8 text-sm" value={editData.platformEmail} onChange={(e) => setEditData((d) => ({ ...d, platformEmail: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">E-posta Şifresi</Label>
-              <Input className="h-8 text-sm" value={editData.emailPassword} onChange={(e) => setEditData((d) => ({ ...d, emailPassword: e.target.value }))} />
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" value={editData.platformPhone} onChange={(e) => setEditData((d) => ({ ...d, platformPhone: e.target.value }))} />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Telefon</Label>
-            <Input className="h-8 text-sm" value={editData.platformPhone} onChange={(e) => setEditData((d) => ({ ...d, platformPhone: e.target.value }))} />
-          </div>
-
           <Separator />
           <p className="text-xs font-medium text-muted-foreground">API Bilgileri</p>
 
@@ -1601,15 +1537,6 @@ function SocialAccountCard({
             </button>
           </div>
         )}
-        {account.emailPassword && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Key className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-xs">E-posta Şifresi: </span>
-            <span className="font-mono text-xs">
-              {showPassword ? account.emailPassword : "••••••••"}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* API Credentials */}
@@ -1683,7 +1610,6 @@ function AddForumAccountDialog({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [forumEmailPassword, setForumEmailPassword] = useState("");
   const [forumApiEndpoint, setForumApiEndpoint] = useState("");
   const [forumApiKey, setForumApiKey] = useState("");
   const [forumApiSecretKey, setForumApiSecretKey] = useState("");
@@ -1701,7 +1627,6 @@ function AddForumAccountDialog({
     setEmail("");
     setPhone("");
     setPassword("");
-    setForumEmailPassword("");
     setForumApiEndpoint("");
     setForumApiKey("");
     setForumApiSecretKey("");
@@ -1733,7 +1658,6 @@ function AddForumAccountDialog({
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           password: password || undefined,
-          emailPassword: forumEmailPassword || undefined,
           apiEndpoint: forumApiEndpoint.trim() || undefined,
           apiKey: forumApiKey.trim() || undefined,
           apiSecretKey: forumApiSecretKey.trim() || undefined,
@@ -1763,172 +1687,83 @@ function AddForumAccountDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Forum / Portal Hesabı Ekle</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="forum-name">Portal Adı *</Label>
-            <Input
-              id="forum-name"
-              placeholder="örnek: Technopat, r10.net, Ekşi Sözlük"
-              value={portalName}
-              onChange={(e) => setPortalName(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="forum-url">Portal URL</Label>
-            <Input
-              id="forum-url"
-              placeholder="https://forum.example.com"
-              value={portalUrl}
-              onChange={(e) => setPortalUrl(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="forum-username">Kullanıcı Adı</Label>
-            <Input
-              id="forum-username"
-              placeholder="kullanıcıadı"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="forum-email">E-posta</Label>
-            <Input
-              id="forum-email"
-              type="email"
-              placeholder="hesap@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="forum-phone">Telefon</Label>
-            <Input
-              id="forum-phone"
-              placeholder="+90 5xx xxx xx xx"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="forum-password">Şifre</Label>
-            <div className="relative">
-              <Input
-                id="forum-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Hesap şifresi"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+        <form onSubmit={handleSubmit} className="space-y-3 overflow-y-auto pr-1 flex-1">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Portal Adı *</Label>
+              <Input className="h-8 text-sm" placeholder="Technopat, r10.net" value={portalName} onChange={(e) => setPortalName(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Portal URL</Label>
+              <Input className="h-8 text-sm" placeholder="https://forum.example.com" value={portalUrl} onChange={(e) => setPortalUrl(e.target.value)} disabled={isSubmitting} />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="forum-email-password">E-posta Şifresi</Label>
-            <Input
-              id="forum-email-password"
-              type="password"
-              placeholder="E-posta hesap şifresi"
-              value={forumEmailPassword}
-              onChange={(e) => setForumEmailPassword(e.target.value)}
-              disabled={isSubmitting}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Kullanıcı Adı</Label>
+              <Input className="h-8 text-sm" placeholder="kullanıcıadı" value={username} onChange={(e) => setUsername(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Şifre</Label>
+              <div className="relative">
+                <Input className="h-8 text-sm pr-8" type={showPassword ? "text" : "password"} placeholder="Hesap şifresi" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">E-posta</Label>
+              <Input className="h-8 text-sm" type="email" placeholder="hesap@email.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" placeholder="+90 5xx" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isSubmitting} />
+            </div>
           </div>
 
           <Separator />
           <p className="text-xs font-medium text-muted-foreground">API Bilgileri (opsiyonel)</p>
 
-          <div className="space-y-2">
-            <Label htmlFor="forum-api-endpoint">API Endpoint</Label>
-            <Input
-              id="forum-api-endpoint"
-              placeholder="https://api.example.com"
-              value={forumApiEndpoint}
-              onChange={(e) => setForumApiEndpoint(e.target.value)}
-              disabled={isSubmitting}
-            />
+          <div className="space-y-1">
+            <Label className="text-xs">API Endpoint</Label>
+            <Input className="h-8 text-sm" placeholder="https://api.example.com" value={forumApiEndpoint} onChange={(e) => setForumApiEndpoint(e.target.value)} disabled={isSubmitting} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="forum-api-key">API Key</Label>
-              <Input
-                id="forum-api-key"
-                placeholder="API Key"
-                value={forumApiKey}
-                onChange={(e) => setForumApiKey(e.target.value)}
-                disabled={isSubmitting}
-              />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">API Key</Label>
+              <Input className="h-8 text-sm" placeholder="API Key" value={forumApiKey} onChange={(e) => setForumApiKey(e.target.value)} disabled={isSubmitting} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="forum-api-secret">API Secret Key</Label>
-              <Input
-                id="forum-api-secret"
-                placeholder="API Secret Key"
-                value={forumApiSecretKey}
-                onChange={(e) => setForumApiSecretKey(e.target.value)}
-                disabled={isSubmitting}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">API Secret Key</Label>
+              <Input className="h-8 text-sm" placeholder="API Secret Key" value={forumApiSecretKey} onChange={(e) => setForumApiSecretKey(e.target.value)} disabled={isSubmitting} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="forum-access-token">Access Token</Label>
-              <Input
-                id="forum-access-token"
-                placeholder="Access Token"
-                value={forumAccessToken}
-                onChange={(e) => setForumAccessToken(e.target.value)}
-                disabled={isSubmitting}
-              />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Access Token</Label>
+              <Input className="h-8 text-sm" placeholder="Access Token" value={forumAccessToken} onChange={(e) => setForumAccessToken(e.target.value)} disabled={isSubmitting} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="forum-access-secret">Access Token Secret</Label>
-              <Input
-                id="forum-access-secret"
-                placeholder="Access Token Secret"
-                value={forumAccessTokenSecret}
-                onChange={(e) => setForumAccessTokenSecret(e.target.value)}
-                disabled={isSubmitting}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">Access Token Secret</Label>
+              <Input className="h-8 text-sm" placeholder="Access Token Secret" value={forumAccessTokenSecret} onChange={(e) => setForumAccessTokenSecret(e.target.value)} disabled={isSubmitting} />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="forum-notes">Notlar</Label>
-            <Textarea
-              id="forum-notes"
-              placeholder="Ek notlar..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={isSubmitting}
-              rows={2}
-            />
+          <div className="space-y-1">
+            <Label className="text-xs">Notlar</Label>
+            <Textarea className="text-sm" placeholder="Ek notlar..." value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isSubmitting} rows={2} />
           </div>
 
           {error && (
@@ -1949,6 +1784,370 @@ function AddForumAccountDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add Email Account Dialog
+// ---------------------------------------------------------------------------
+
+function AddEmailAccountDialog({
+  open,
+  onOpenChange,
+  personaId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  personaId: string;
+  onCreated: () => void;
+}) {
+  const [provider, setProvider] = useState("hotmail");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [notes, setNotes] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  function resetForm() {
+    setProvider("hotmail");
+    setEmail("");
+    setPassword("");
+    setPhone("");
+    setRecoveryEmail("");
+    setNotes("");
+    setShowPassword(false);
+    setError("");
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("E-posta adresi zorunludur.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/email-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personaId,
+          provider,
+          email: email.trim(),
+          password: password || undefined,
+          phone: phone.trim() || undefined,
+          recoveryEmail: recoveryEmail.trim() || undefined,
+          notes: notes.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Hesap eklenemedi.");
+
+      resetForm();
+      onOpenChange(false);
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bir hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) resetForm();
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>E-posta Hesabı Ekle</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-3 overflow-y-auto pr-1 flex-1">
+          <div className="space-y-1">
+            <Label className="text-xs">Sağlayıcı</Label>
+            <Select value={provider} onValueChange={setProvider} disabled={isSubmitting}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hotmail">Hotmail / Outlook</SelectItem>
+                <SelectItem value="gmail">Gmail</SelectItem>
+                <SelectItem value="yandex">Yandex</SelectItem>
+                <SelectItem value="protonmail">ProtonMail</SelectItem>
+                <SelectItem value="icloud">iCloud</SelectItem>
+                <SelectItem value="other">Diğer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">E-posta Adresi *</Label>
+              <Input className="h-8 text-sm" type="email" placeholder="hesap@hotmail.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Şifre</Label>
+              <div className="relative">
+                <Input className="h-8 text-sm pr-8" type={showPassword ? "text" : "password"} placeholder="Şifre" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" placeholder="+90 5xx" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Kurtarma E-postası</Label>
+              <Input className="h-8 text-sm" type="email" placeholder="recovery@email.com" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} disabled={isSubmitting} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">Notlar</Label>
+            <Textarea className="text-sm" placeholder="Ek notlar..." value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isSubmitting} rows={2} />
+          </div>
+
+          {error && (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              İptal
+            </Button>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              Ekle
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Email Account Card
+// ---------------------------------------------------------------------------
+
+const emailProviderNames: Record<string, string> = {
+  hotmail: "Hotmail / Outlook",
+  gmail: "Gmail",
+  yandex: "Yandex",
+  protonmail: "ProtonMail",
+  icloud: "iCloud",
+  other: "Diğer",
+};
+
+function EmailAccountCard({
+  account,
+  onDelete,
+  onUpdated,
+}: {
+  account: EmailAccount;
+  onDelete: () => void;
+  onUpdated: () => void;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editData, setEditData] = useState({
+    provider: account.provider || "hotmail",
+    email: account.email || "",
+    password: account.password || "",
+    phone: account.phone || "",
+    recoveryEmail: account.recoveryEmail || "",
+    notes: account.notes || "",
+  });
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/email-accounts/${account.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      onDelete();
+    } catch {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/email-accounts/${account.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: editData.provider,
+          email: editData.email.trim(),
+          password: editData.password || undefined,
+          phone: editData.phone.trim() || undefined,
+          recoveryEmail: editData.recoveryEmail.trim() || undefined,
+          notes: editData.notes.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setIsEditing(false);
+      onUpdated();
+    } catch {
+      // ignore
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="rounded-lg border p-4 space-y-3">
+        <p className="text-sm font-medium">E-posta Hesabı — Düzenle</p>
+        <div className="grid gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Sağlayıcı</Label>
+            <Select value={editData.provider} onValueChange={(v) => setEditData((d) => ({ ...d, provider: v }))}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hotmail">Hotmail / Outlook</SelectItem>
+                <SelectItem value="gmail">Gmail</SelectItem>
+                <SelectItem value="yandex">Yandex</SelectItem>
+                <SelectItem value="protonmail">ProtonMail</SelectItem>
+                <SelectItem value="icloud">iCloud</SelectItem>
+                <SelectItem value="other">Diğer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">E-posta</Label>
+              <Input className="h-8 text-sm" value={editData.email} onChange={(e) => setEditData((d) => ({ ...d, email: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Şifre</Label>
+              <Input className="h-8 text-sm" value={editData.password} onChange={(e) => setEditData((d) => ({ ...d, password: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" value={editData.phone} onChange={(e) => setEditData((d) => ({ ...d, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Kurtarma E-postası</Label>
+              <Input className="h-8 text-sm" value={editData.recoveryEmail} onChange={(e) => setEditData((d) => ({ ...d, recoveryEmail: e.target.value }))} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Notlar</Label>
+            <Input className="h-8 text-sm" value={editData.notes} onChange={(e) => setEditData((d) => ({ ...d, notes: e.target.value }))} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>İptal</Button>
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+            Kaydet
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-bold">
+            <Mail className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">{emailProviderNames[account.provider] || account.provider}</p>
+            <p className="text-xs text-muted-foreground">{account.email}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={account.isActive ? "default" : "secondary"}>
+            {account.isActive ? "Aktif" : "Pasif"}
+          </Badge>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)}>
+            <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isDeleting}>
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hesabı silmek istediğinize emin misiniz?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bu e-posta hesap bilgileri kalıcı olarak silinecektir.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>İptal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Sil</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+
+      <div className="grid gap-2 text-sm">
+        {account.password && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Key className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs">Şifre: </span>
+            <span className="font-mono text-xs">
+              {showPassword ? account.password : "••••••••"}
+            </span>
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        )}
+        {account.phone && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Phone className="h-3.5 w-3.5 shrink-0" />
+            <span>{account.phone}</span>
+          </div>
+        )}
+        {account.recoveryEmail && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Mail className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs">Kurtarma: {account.recoveryEmail}</span>
+          </div>
+        )}
+        {account.notes && (
+          <div className="flex items-start gap-2 text-muted-foreground">
+            <StickyNote className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span className="text-xs">{account.notes}</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1976,7 +2175,6 @@ function ForumAccountCard({
     email: account.email || "",
     phone: account.phone || "",
     password: account.password || "",
-    emailPassword: account.emailPassword || "",
     apiEndpoint: account.apiEndpoint || "",
     apiKey: account.apiKey || "",
     apiSecretKey: account.apiSecretKey || "",
@@ -2011,7 +2209,6 @@ function ForumAccountCard({
           email: editData.email.trim() || undefined,
           phone: editData.phone.trim() || undefined,
           password: editData.password || undefined,
-          emailPassword: editData.emailPassword || undefined,
           apiEndpoint: editData.apiEndpoint.trim() || undefined,
           apiKey: editData.apiKey.trim() || undefined,
           apiSecretKey: editData.apiSecretKey.trim() || undefined,
@@ -2061,8 +2258,8 @@ function ForumAccountCard({
               <Input className="h-8 text-sm" value={editData.email} onChange={(e) => setEditData((d) => ({ ...d, email: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">E-posta Şifresi</Label>
-              <Input className="h-8 text-sm" value={editData.emailPassword} onChange={(e) => setEditData((d) => ({ ...d, emailPassword: e.target.value }))} />
+              <Label className="text-xs">Telefon</Label>
+              <Input className="h-8 text-sm" value={editData.phone} onChange={(e) => setEditData((d) => ({ ...d, phone: e.target.value }))} />
             </div>
           </div>
           <Separator />
@@ -2186,15 +2383,6 @@ function ForumAccountCard({
             >
               {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
-          </div>
-        )}
-        {account.emailPassword && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Key className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-xs">E-posta Şifresi: </span>
-            <span className="font-mono text-xs">
-              {showPassword ? account.emailPassword : "••••••••"}
-            </span>
           </div>
         )}
         {account.notes && (
@@ -2742,6 +2930,7 @@ export default function PersonaDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addSocialOpen, setAddSocialOpen] = useState(false);
   const [addForumOpen, setAddForumOpen] = useState(false);
+  const [addEmailOpen, setAddEmailOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchPersona = useCallback(async () => {
@@ -2907,6 +3096,7 @@ export default function PersonaDetailPage() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="profil">Profil</TabsTrigger>
           <TabsTrigger value="sosyal">Sosyal Hesaplar</TabsTrigger>
+          <TabsTrigger value="eposta">E-posta</TabsTrigger>
           <TabsTrigger value="forumlar">Forum & Portallar</TabsTrigger>
           <TabsTrigger value="roller">Roller</TabsTrigger>
           <TabsTrigger value="medya">Medya</TabsTrigger>
@@ -3030,6 +3220,50 @@ export default function PersonaDetailPage() {
                     Bu personaya henüz sosyal medya hesabı bağlanmamış.
                   </p>
                   <Button size="sm" className="mt-4" onClick={() => setAddSocialOpen(true)}>
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Hesap Ekle
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---- E-posta Hesapları Tab ---- */}
+        <TabsContent value="eposta">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">E-posta Hesapları</CardTitle>
+                <CardDescription>
+                  Personaya bağlı e-posta hesapları ve giriş bilgileri.
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setAddEmailOpen(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Hesap Ekle
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {persona.emailAccounts && persona.emailAccounts.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {persona.emailAccounts.map((account) => (
+                    <EmailAccountCard
+                      key={account.id}
+                      account={account}
+                      onDelete={fetchPersona}
+                      onUpdated={fetchPersona}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Mail className="h-8 w-8 text-muted-foreground" />
+                  <h3 className="mt-4 text-sm font-semibold">Bağlı e-posta hesabı yok</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Bu personaya henüz e-posta hesabı eklenmemiş.
+                  </p>
+                  <Button size="sm" className="mt-4" onClick={() => setAddEmailOpen(true)}>
                     <Plus className="mr-1.5 h-3.5 w-3.5" />
                     Hesap Ekle
                   </Button>
@@ -3235,6 +3469,12 @@ export default function PersonaDetailPage() {
           <AddForumAccountDialog
             open={addForumOpen}
             onOpenChange={setAddForumOpen}
+            personaId={persona.id}
+            onCreated={fetchPersona}
+          />
+          <AddEmailAccountDialog
+            open={addEmailOpen}
+            onOpenChange={setAddEmailOpen}
             personaId={persona.id}
             onCreated={fetchPersona}
           />

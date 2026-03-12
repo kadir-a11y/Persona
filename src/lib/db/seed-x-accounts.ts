@@ -119,16 +119,27 @@ async function seedXAccounts() {
       })
       .returning();
 
-    // Create social account (X/Twitter)
-    await db.insert(schema.socialAccounts).values({
-      personaId: persona.id,
-      platform: "twitter",
-      platformUsername: account.username || null,
-      platformEmail: account.email || null,
-      platformPassword: account.password || null,
-      emailPassword: account.emailPassword || null,
-      isActive: true,
-    });
+    // Create social account (X/Twitter) — only if username exists
+    if (account.username) {
+      await db.insert(schema.socialAccounts).values({
+        personaId: persona.id,
+        platform: "twitter",
+        platformUsername: account.username,
+        platformPassword: account.password || null,
+        isActive: true,
+      });
+    }
+
+    // Create email account — if email exists
+    if (account.email) {
+      await db.insert(schema.emailAccounts).values({
+        personaId: persona.id,
+        provider: "hotmail",
+        email: account.email,
+        password: account.emailPassword || null,
+        isActive: true,
+      });
+    }
 
     console.log(`  Created: ${account.name}`);
     created++;

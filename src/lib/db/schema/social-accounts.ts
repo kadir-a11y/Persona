@@ -12,7 +12,6 @@ export const socialAccounts = pgTable("social_accounts", {
   platformEmail: varchar("platform_email", { length: 255 }),
   platformPhone: varchar("platform_phone", { length: 50 }),
   platformPassword: text("platform_password"),
-  emailPassword: text("email_password"),
   apiEndpoint: text("api_endpoint"),
   apiKey: text("api_key"),
   apiSecretKey: text("api_secret_key"),

@@ -8,7 +8,6 @@ export const forumAccountCreateSchema = z.object({
   email: z.string().max(255).optional(),
   phone: z.string().max(50).optional(),
   password: z.string().optional(),
-  emailPassword: z.string().optional(),
   apiEndpoint: z.string().optional(),
   apiKey: z.string().optional(),
   apiSecretKey: z.string().optional(),
