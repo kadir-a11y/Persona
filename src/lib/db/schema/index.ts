@@ -25,6 +25,7 @@ export { monitoredTopics } from "./monitored-topics";
 export { monitoringSources } from "./monitoring-sources";
 export { discoveredItems } from "./discovered-items";
 export { autoPostRules } from "./auto-post-rules";
+export { engagementMetrics } from "./engagement-metrics";
 
 import { users } from "./users";
 import { personas } from "./personas";
@@ -51,6 +52,7 @@ import { monitoredTopics } from "./monitored-topics";
 import { monitoringSources } from "./monitoring-sources";
 import { discoveredItems } from "./discovered-items";
 import { autoPostRules } from "./auto-post-rules";
+import { engagementMetrics } from "./engagement-metrics";
 
 // ── Users relations ──────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
@@ -177,7 +179,7 @@ export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
 }));
 
 // ── Content items relations ──────────────────────────────────────────
-export const contentItemsRelations = relations(contentItems, ({ one }) => ({
+export const contentItemsRelations = relations(contentItems, ({ one, many }) => ({
   persona: one(personas, {
     fields: [contentItems.personaId],
     references: [personas.id],
@@ -189,6 +191,15 @@ export const contentItemsRelations = relations(contentItems, ({ one }) => ({
   project: one(projects, {
     fields: [contentItems.projectId],
     references: [projects.id],
+  }),
+  engagementMetrics: many(engagementMetrics),
+}));
+
+// ── Engagement metrics relations ────────────────────────────────────
+export const engagementMetricsRelations = relations(engagementMetrics, ({ one }) => ({
+  contentItem: one(contentItems, {
+    fields: [engagementMetrics.contentItemId],
+    references: [contentItems.id],
   }),
 }));
 

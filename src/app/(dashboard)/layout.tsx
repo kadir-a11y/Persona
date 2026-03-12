@@ -18,6 +18,7 @@ import {
   Bug,
   Radar,
   Sparkles,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,8 +36,10 @@ const navItems = [
   { href: "/projects", label: "Projeler", icon: FolderKanban },
   { href: "/monitoring", label: "İzleme", icon: Radar },
   { href: "/ai-content", label: "AI İçerik", icon: Sparkles },
+  { href: "/reports", label: "Raporlar", icon: FileDown },
   { href: "/analytics", label: "Analitik", icon: BarChart3 },
   { href: "/bug-reports", label: "Bug Bildirimleri", icon: Bug },
+  { href: "/settings", label: "Ayarlar", icon: Settings },
 ];
 
 function Sidebar({ className }: { className?: string }) {
