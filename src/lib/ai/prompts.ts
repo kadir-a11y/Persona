@@ -71,3 +71,45 @@ export function buildCampaignPrompt(
     `Sablon/Talimat: ${contentTemplate}`
   );
 }
+
+interface ProjectDefenseContext {
+  projectName: string;
+  projectDescription?: string;
+  clientName?: string;
+  keywords: string[];
+  negativeMentionExamples?: string[];
+}
+
+export function buildDefenseContentPrompt(
+  persona: PersonaContext,
+  platform: string,
+  project: ProjectDefenseContext,
+  additionalInstructions?: string
+): string {
+  const mentionExamples = project.negativeMentionExamples?.length
+    ? `\nNegatif bahsetme ornekleri (bunlara karsi savunma yap):\n${project.negativeMentionExamples.map((m, i) => `${i + 1}. "${m}"`).join("\n")}`
+    : "";
+
+  const defenseContext = `
+PROJE BAGLAMI:
+- Proje: ${project.projectName}
+${project.projectDescription ? `- Aciklama: ${project.projectDescription}` : ""}
+${project.clientName ? `- Musteri: ${project.clientName}` : ""}
+- Anahtar kelimeler: ${project.keywords.join(", ") || "belirtilmemis"}
+${mentionExamples}
+
+GOREV: Bu proje kapsaminda savunma/destek icerigi uret. Icerik:
+- Dogal ve organik gorunmeli
+- Pozitif bir bakis acisi sunmali
+- Dogrudan saldiriya yanit vermek yerine pozitif narratif kurmali
+- Karakterine uygun olmali
+${additionalInstructions ? `Ek talimatlar: ${additionalInstructions}` : ""}`;
+
+  return buildContentPrompt(
+    persona,
+    platform,
+    "post",
+    undefined,
+    defenseContext
+  );
+}

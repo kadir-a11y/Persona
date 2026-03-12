@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Shield,
+  FolderKanban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/tags", label: "Etiketler", icon: Tags },
   { href: "/content", label: "İçerik", icon: FileText },
   { href: "/campaigns", label: "Kampanyalar", icon: Megaphone },
+  { href: "/projects", label: "Projeler", icon: FolderKanban },
   { href: "/analytics", label: "Analitik", icon: BarChart3 },
 ];
 

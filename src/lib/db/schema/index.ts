@@ -13,6 +13,12 @@ export { campaigns } from "./campaigns";
 export { contentItems } from "./content-items";
 export { mediaLibrary } from "./media";
 export { activityLog } from "./activity-log";
+export { projects } from "./projects";
+export { projectTeam } from "./project-team";
+export { projectMentions } from "./project-mentions";
+export { projectTasks } from "./project-tasks";
+export { projectTimeline } from "./project-timeline";
+export { projectPlaybooks } from "./project-playbooks";
 
 import { users } from "./users";
 import { personas } from "./personas";
@@ -27,6 +33,12 @@ import { campaigns } from "./campaigns";
 import { contentItems } from "./content-items";
 import { mediaLibrary } from "./media";
 import { activityLog } from "./activity-log";
+import { projects } from "./projects";
+import { projectTeam } from "./project-team";
+import { projectMentions } from "./project-mentions";
+import { projectTasks } from "./project-tasks";
+import { projectTimeline } from "./project-timeline";
+import { projectPlaybooks } from "./project-playbooks";
 
 // ── Users relations ──────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
@@ -36,6 +48,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   roles: many(roles),
   campaigns: many(campaigns),
   activityLogs: many(activityLog),
+  projects: many(projects),
+  playbooks: many(projectPlaybooks),
 }));
 
 // ── Personas relations ───────────────────────────────────────────────
@@ -50,6 +64,7 @@ export const personasRelations = relations(personas, ({ one, many }) => ({
   personaTags: many(personaTags),
   personaRoles: many(personaRoles),
   media: many(mediaLibrary),
+  projectTeamAssignments: many(projectTeam),
 }));
 
 // ── Social accounts relations ────────────────────────────────────────
@@ -75,6 +90,7 @@ export const roleCategoriesRelations = relations(roleCategories, ({ one, many })
     references: [users.id],
   }),
   roles: many(roles),
+  projectTeamAssignments: many(projectTeam),
 }));
 
 // ── Roles relations ─────────────────────────────────────────────────
@@ -88,6 +104,7 @@ export const rolesRelations = relations(roles, ({ one, many }) => ({
     references: [roleCategories.id],
   }),
   personaRoles: many(personaRoles),
+  projectTeamAssignments: many(projectTeam),
 }));
 
 // ── Persona roles (join table) relations ────────────────────────────
@@ -129,6 +146,10 @@ export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
     fields: [campaigns.userId],
     references: [users.id],
   }),
+  project: one(projects, {
+    fields: [campaigns.projectId],
+    references: [projects.id],
+  }),
   contentItems: many(contentItems),
 }));
 
@@ -141,6 +162,10 @@ export const contentItemsRelations = relations(contentItems, ({ one }) => ({
   campaign: one(campaigns, {
     fields: [contentItems.campaignId],
     references: [campaigns.id],
+  }),
+  project: one(projects, {
+    fields: [contentItems.projectId],
+    references: [projects.id],
   }),
 }));
 
@@ -156,6 +181,98 @@ export const mediaLibraryRelations = relations(mediaLibrary, ({ one }) => ({
 export const activityLogRelations = relations(activityLog, ({ one }) => ({
   user: one(users, {
     fields: [activityLog.userId],
+    references: [users.id],
+  }),
+}));
+
+// ── Projects relations ───────────────────────────────────────────────
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, {
+    fields: [projects.userId],
+    references: [users.id],
+  }),
+  team: many(projectTeam),
+  mentions: many(projectMentions),
+  tasks: many(projectTasks),
+  timeline: many(projectTimeline),
+}));
+
+// ── Project team relations ───────────────────────────────────────────
+export const projectTeamRelations = relations(projectTeam, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectTeam.projectId],
+    references: [projects.id],
+  }),
+  persona: one(personas, {
+    fields: [projectTeam.personaId],
+    references: [personas.id],
+  }),
+  role: one(roles, {
+    fields: [projectTeam.roleId],
+    references: [roles.id],
+  }),
+  roleCategory: one(roleCategories, {
+    fields: [projectTeam.roleCategoryId],
+    references: [roleCategories.id],
+  }),
+}));
+
+// ── Project mentions relations ───────────────────────────────────────
+export const projectMentionsRelations = relations(projectMentions, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectMentions.projectId],
+    references: [projects.id],
+  }),
+  assignedPersona: one(personas, {
+    fields: [projectMentions.assignedPersonaId],
+    references: [personas.id],
+  }),
+  respondedContent: one(contentItems, {
+    fields: [projectMentions.respondedContentId],
+    references: [contentItems.id],
+  }),
+}));
+
+// ── Project tasks relations ──────────────────────────────────────────
+export const projectTasksRelations = relations(projectTasks, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectTasks.projectId],
+    references: [projects.id],
+  }),
+  assignedPersona: one(personas, {
+    fields: [projectTasks.assignedPersonaId],
+    references: [personas.id],
+  }),
+  assignedRole: one(roles, {
+    fields: [projectTasks.assignedRoleId],
+    references: [roles.id],
+  }),
+  assignedRoleCategory: one(roleCategories, {
+    fields: [projectTasks.assignedRoleCategoryId],
+    references: [roleCategories.id],
+  }),
+  contentItem: one(contentItems, {
+    fields: [projectTasks.contentItemId],
+    references: [contentItems.id],
+  }),
+  campaign: one(campaigns, {
+    fields: [projectTasks.campaignId],
+    references: [campaigns.id],
+  }),
+}));
+
+// ── Project timeline relations ───────────────────────────────────────
+export const projectTimelineRelations = relations(projectTimeline, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectTimeline.projectId],
+    references: [projects.id],
+  }),
+}));
+
+// ── Project playbooks relations ──────────────────────────────────────
+export const projectPlaybooksRelations = relations(projectPlaybooks, ({ one }) => ({
+  user: one(users, {
+    fields: [projectPlaybooks.userId],
     references: [users.id],
   }),
 }));
