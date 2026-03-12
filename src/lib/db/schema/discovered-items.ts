@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { monitoredTopics } from "./monitored-topics";
 import { monitoringSources } from "./monitoring-sources";
 
@@ -15,6 +15,7 @@ export const discoveredItems = pgTable("discovered_items", {
   summary: text("summary"),
   url: text("url"),
   relevanceScore: integer("relevance_score").default(0),
+  aiMetadata: jsonb("ai_metadata").default({}),
   status: varchar("status", { length: 20 }).default("new"),
   discoveredAt: timestamp("discovered_at", { withTimezone: true }).defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

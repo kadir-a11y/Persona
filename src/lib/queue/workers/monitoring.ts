@@ -93,6 +93,7 @@ export function createMonitoringWorker() {
                 `score-${inserted.id}`,
                 {
                   discoveredItemId: inserted.id,
+                  topicId: topic.id,
                   topicKeywords: topicData.keywords,
                   title: item.title,
                   summary: item.summary,

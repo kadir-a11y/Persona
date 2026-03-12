@@ -6,7 +6,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 const statusUpdateSchema = z.object({
-  status: z.enum(["new", "reviewed", "auto_posted", "ignored", "manual_posted"]),
+  status: z.enum(["new", "reviewed", "auto_posted", "ignored", "manual_posted", "pending_approval", "rejected"]),
 });
 
 export async function PUT(
