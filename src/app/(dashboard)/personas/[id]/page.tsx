@@ -37,6 +37,7 @@ import {
   Copy,
   Save,
 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -3141,6 +3142,7 @@ function SettingsTab({ persona, onUpdated }: { persona: Persona; onUpdated: () =
 // ---------------------------------------------------------------------------
 
 export default function PersonaDetailPage() {
+  const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -3185,9 +3187,15 @@ export default function PersonaDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setAiResults(data.results || []);
+        toast({ title: "İçerik üretildi", description: `${(data.results || []).length} içerik başarıyla oluşturuldu.` });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error("AI generation failed:", err);
+        toast({ title: "İçerik üretilemedi", description: err.details || err.error || "Bir hata oluştu. Lütfen tekrar deneyin.", variant: "destructive" });
       }
     } catch (error) {
       console.error("AI generation failed:", error);
+      toast({ title: "Bağlantı hatası", description: "Sunucuya bağlanılamadı. Lütfen tekrar deneyin.", variant: "destructive" });
     } finally {
       setAiLoading(false);
     }

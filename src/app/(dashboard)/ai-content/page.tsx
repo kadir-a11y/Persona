@@ -30,6 +30,7 @@ import {
   MessageSquare,
   RefreshCw,
 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Persona {
   id: string;
@@ -77,6 +78,7 @@ const CONTENT_TYPES = [
 ];
 
 export default function AiContentPage() {
+  const { toast } = useToast();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loadingPersonas, setLoadingPersonas] = useState(true);
 
@@ -135,12 +137,15 @@ export default function AiContentPage() {
       if (res.ok) {
         const data = await res.json();
         setResults(data.results || []);
+        toast({ title: "İçerik üretildi", description: `${(data.results || []).length} içerik başarıyla oluşturuldu.` });
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         console.error("Generation failed:", err);
+        toast({ title: "İçerik üretilemedi", description: err.details || err.error || "Bir hata oluştu. Lütfen tekrar deneyin.", variant: "destructive" });
       }
     } catch (error) {
       console.error("AI generation failed:", error);
+      toast({ title: "Bağlantı hatası", description: "Sunucuya bağlanılamadı. Lütfen tekrar deneyin.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
