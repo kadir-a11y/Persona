@@ -49,6 +49,34 @@ export async function getPlatformCounts(projectId: string) {
   return { platforms: counts, total };
 }
 
+export async function addManualContent(
+  projectId: string,
+  data: {
+    platform: string;
+    content: string;
+    sourceUrl?: string;
+    sourceAuthor?: string;
+    sentiment?: string;
+  }
+) {
+  const [item] = await db
+    .insert(projectMentions)
+    .values({
+      projectId,
+      platform: data.platform,
+      content: data.content,
+      sourceUrl: data.sourceUrl || null,
+      sourceAuthor: data.sourceAuthor || null,
+      sentiment: data.sentiment || "neutral",
+      reachEstimate: 0,
+      engagementCount: 0,
+      requiresResponse: data.sentiment === "negative",
+      responseStatus: data.sentiment === "negative" ? "pending" as const : "not_needed" as const,
+    })
+    .returning();
+  return item;
+}
+
 export async function addMockFeedData(projectId: string) {
   const platforms = ["twitter", "instagram", "facebook", "linkedin"];
   const sentiments = ["positive", "negative", "neutral"];

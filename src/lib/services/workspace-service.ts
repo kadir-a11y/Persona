@@ -236,7 +236,7 @@ export async function generateResponses(
           platform: session.platform || "twitter",
           contentType: options.contentType || "reply",
           aiPrompt: prompt,
-          aiModel: "gemini-2.0-flash-lite",
+          aiModel: "gemini-2.5-flash-lite",
           status: "pending_review",
         })
         .returning();
@@ -263,7 +263,7 @@ export async function generateResponses(
           platform: session.platform || "twitter",
           contentType: options.contentType || "reply",
           aiPrompt: prompt,
-          aiModel: "gemini-2.0-flash-lite",
+          aiModel: "gemini-2.5-flash-lite",
           status: "failed",
           errorMessage: message,
         })

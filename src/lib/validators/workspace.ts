@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const workspaceSessionStatuses = ["active", "completed", "archived"] as const;
 export const workspaceResponseStatuses = ["pending_review", "approved", "rejected", "published", "failed"] as const;
-export const workspaceContentTypes = ["reply", "comment", "post"] as const;
+export const workspaceContentTypes = ["reply", "comment", "post", "like", "retweet", "quote"] as const;
 export const workspacePlatforms = ["twitter", "instagram", "facebook", "linkedin", "tiktok"] as const;
 export const workspaceSentiments = ["positive", "negative", "neutral", "supportive", "defensive"] as const;
 

@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         url: item.url,
       },
       prompt,
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

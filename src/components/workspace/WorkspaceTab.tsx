@@ -36,6 +36,8 @@ import {
   ChevronRight,
   Clock,
   Sparkles,
+  Search,
+  Plus,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -88,6 +90,15 @@ interface FilterOptions {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────
+
+const INTERACTION_TYPES = [
+  { value: "reply", label: "Yanıt", icon: "💬", requiresAI: true },
+  { value: "like", label: "Beğeni", icon: "❤️", requiresAI: false },
+  { value: "retweet", label: "Repost", icon: "🔁", requiresAI: false },
+  { value: "quote", label: "Alıntı", icon: "📝", requiresAI: true },
+  { value: "comment", label: "Yorum", icon: "💭", requiresAI: true },
+  { value: "post", label: "Post", icon: "📢", requiresAI: true },
+] as const;
 
 const PLATFORM_LABELS: Record<string, string> = {
   twitter: "Twitter/X",
@@ -144,6 +155,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   // AI command state
   const [aiCommand, setAiCommand] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState("twitter");
+  const [interactionType, setInteractionType] = useState("reply");
 
   // Persona selection state
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -152,6 +164,9 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
   const [filterCountry, setFilterCountry] = useState("all");
   const [filterLanguage, setFilterLanguage] = useState("all");
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const [filterRoleIds, setFilterRoleIds] = useState<string[]>([]);
+  const [personaSearch, setPersonaSearch] = useState("");
 
   // Generation state
   const [generating, setGenerating] = useState(false);
@@ -164,6 +179,20 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
 
   // Publishing state
   const [publishing, setPublishing] = useState(false);
+
+  // Response filter state
+  const [responseStatusFilter, setResponseStatusFilter] = useState("all");
+
+  // New content form state
+  const [showNewContent, setShowNewContent] = useState(false);
+  const [newContent, setNewContent] = useState({
+    platform: "twitter",
+    content: "",
+    sourceUrl: "",
+    sourceAuthor: "",
+    sentiment: "neutral",
+  });
+  const [addingContent, setAddingContent] = useState(false);
 
   // ── Fetch Functions ────────────────────────────────────────────────
 
@@ -194,6 +223,8 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
       const params = new URLSearchParams();
       if (filterCountry !== "all") params.set("country", filterCountry);
       if (filterLanguage !== "all") params.set("language", filterLanguage);
+      if (filterTagIds.length > 0) params.set("tagIds", filterTagIds.join(","));
+      if (filterRoleIds.length > 0) params.set("roleIds", filterRoleIds.join(","));
       params.set("isActive", "true");
 
       const res = await fetch(`/api/personas/filter?${params}`);
@@ -205,7 +236,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
     } finally {
       setPersonasLoading(false);
     }
-  }, [filterCountry, filterLanguage]);
+  }, [filterCountry, filterLanguage, filterTagIds, filterRoleIds]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -230,7 +261,8 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   // ── Actions ────────────────────────────────────────────────────────
 
   const handleGenerate = async () => {
-    if (!aiCommand.trim() || selectedPersonaIds.size === 0) return;
+    if (requiresAI && !aiCommand.trim()) return;
+    if (selectedPersonaIds.size === 0) return;
     setGenerating(true);
 
     try {
@@ -240,7 +272,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceContentId: selectedFeedItem?.id || undefined,
-          aiCommand,
+          aiCommand: requiresAI ? aiCommand : `${interactionType} action`,
           selectedPersonaIds: Array.from(selectedPersonaIds),
           platform: selectedPlatform,
         }),
@@ -257,7 +289,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contentType: "reply",
+            contentType: interactionType,
           }),
         }
       );
@@ -395,6 +427,33 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleAddContent = async () => {
+    if (!newContent.content.trim()) return;
+    setAddingContent(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/feed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: newContent.platform,
+          content: newContent.content,
+          sourceUrl: newContent.sourceUrl || undefined,
+          sourceAuthor: newContent.sourceAuthor || undefined,
+          sentiment: newContent.sentiment,
+        }),
+      });
+      if (res.ok) {
+        setNewContent({ platform: "twitter", content: "", sourceUrl: "", sourceAuthor: "", sentiment: "neutral" });
+        setShowNewContent(false);
+        fetchFeed();
+      }
+    } catch (error) {
+      console.error("Add content failed:", error);
+    } finally {
+      setAddingContent(false);
+    }
+  };
+
   const handleAddMockData = async () => {
     try {
       await fetch(`/api/projects/${projectId}/feed/mock`, { method: "POST" });
@@ -417,10 +476,20 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   };
 
   const selectAllPersonas = () => {
-    if (selectedPersonaIds.size === personas.length) {
-      setSelectedPersonaIds(new Set());
+    const visibleIds = filteredPersonas.map((p) => p.id);
+    const allVisibleSelected = visibleIds.every((id) => selectedPersonaIds.has(id));
+    if (allVisibleSelected) {
+      setSelectedPersonaIds((prev) => {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedPersonaIds(new Set(personas.map((p) => p.id)));
+      setSelectedPersonaIds((prev) => {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.add(id));
+        return next;
+      });
     }
   };
 
@@ -428,23 +497,84 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
 
   const approvedCount = responses.filter((r) => r.status === "approved").length;
   const pendingCount = responses.filter((r) => r.status === "pending_review").length;
+  const currentInteraction = INTERACTION_TYPES.find((t) => t.value === interactionType) || INTERACTION_TYPES[0];
+  const requiresAI = currentInteraction.requiresAI;
+  const failedCount = responses.filter((r) => r.status === "failed").length;
+  const publishedCount = responses.filter((r) => r.status === "published").length;
+  const rejectedCount = responses.filter((r) => r.status === "rejected").length;
+
+  const filteredResponses = responseStatusFilter === "all"
+    ? responses
+    : responses.filter((r) => r.status === responseStatusFilter);
+
+  const responseStatusTabs = [
+    { value: "all", label: "Tümü", count: responses.length },
+    { value: "pending_review", label: "Bekleyen", count: pendingCount },
+    { value: "approved", label: "Onaylı", count: approvedCount },
+    { value: "rejected", label: "Reddedilen", count: rejectedCount },
+    { value: "published", label: "Yayınlanan", count: publishedCount },
+    { value: "failed", label: "Başarısız", count: failedCount },
+  ];
+
+  const filteredPersonas = personaSearch
+    ? personas.filter((p) =>
+        p.name.toLowerCase().includes(personaSearch.toLowerCase())
+      )
+    : personas;
+
+  const activeFilterCount =
+    (filterCountry !== "all" ? 1 : 0) +
+    (filterLanguage !== "all" ? 1 : 0) +
+    filterTagIds.length +
+    filterRoleIds.length;
+
+  const clearAllFilters = () => {
+    setFilterCountry("all");
+    setFilterLanguage("all");
+    setFilterTagIds([]);
+    setFilterRoleIds([]);
+    setPersonaSearch("");
+  };
+
+  const toggleTagFilter = (tagId: string) => {
+    setFilterTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
+
+  const toggleRoleFilter = (roleId: string) => {
+    setFilterRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+    );
+  };
 
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
       {/* ── Top: Content Feed + Workspace Panel ─────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-4 lg:grid-cols-12">
         {/* Left: Content Feed */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-3 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">İçerik Akışı</CardTitle>
-                <Button variant="ghost" size="sm" onClick={handleAddMockData}>
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Mock
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant={showNewContent ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setShowNewContent(!showNewContent)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Yeni
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleAddMockData}>
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    Mock
+                  </Button>
+                </div>
               </div>
               {/* Platform Filter Tabs */}
               <div className="flex flex-wrap gap-1 mt-2">
@@ -469,6 +599,84 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                 ))}
               </div>
             </CardHeader>
+
+            {/* New Content Form */}
+            {showNewContent && (
+              <CardContent className="border-b pb-3 space-y-2">
+                <Select
+                  value={newContent.platform}
+                  onValueChange={(v) => setNewContent((p) => ({ ...p, platform: v }))}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="twitter">Twitter/X</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="İçerik metnini yapıştırın..."
+                  value={newContent.content}
+                  onChange={(e) => setNewContent((p) => ({ ...p, content: e.target.value }))}
+                  rows={3}
+                  className="resize-none text-sm"
+                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="@yazar (opsiyonel)"
+                    value={newContent.sourceAuthor}
+                    onChange={(e) => setNewContent((p) => ({ ...p, sourceAuthor: e.target.value }))}
+                    className="h-7 text-xs flex-1"
+                  />
+                  <Select
+                    value={newContent.sentiment}
+                    onValueChange={(v) => setNewContent((p) => ({ ...p, sentiment: v }))}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="positive">Olumlu</SelectItem>
+                      <SelectItem value="negative">Olumsuz</SelectItem>
+                      <SelectItem value="neutral">Nötr</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input
+                  placeholder="Kaynak URL (opsiyonel)"
+                  value={newContent.sourceUrl}
+                  onChange={(e) => setNewContent((p) => ({ ...p, sourceUrl: e.target.value }))}
+                  className="h-7 text-xs"
+                />
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs flex-1"
+                    onClick={handleAddContent}
+                    disabled={addingContent || !newContent.content.trim()}
+                  >
+                    {addingContent ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      "Ekle"
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setShowNewContent(false)}
+                  >
+                    İptal
+                  </Button>
+                </div>
+              </CardContent>
+            )}
+
             <CardContent className="max-h-[500px] overflow-y-auto space-y-2 pt-0">
               {feedLoading ? (
                 <div className="flex justify-center py-8">
@@ -527,13 +735,13 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
         </div>
 
         {/* Right: Workspace Panel (3 sections) */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-9 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Source Content + AI Command */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">
-                  {selectedFeedItem ? "Kaynak İçerik" : "AI Komutu"}
+                  {selectedFeedItem ? "Kaynak İçerik" : "Komut Paneli"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -561,13 +769,39 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                   </div>
                 )}
 
-                <Textarea
-                  placeholder="AI'ya talimat verin... (ör: Bu içeriğe olumlu ve destekleyici yanıt yazın)"
-                  value={aiCommand}
-                  onChange={(e) => setAiCommand(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
+                {/* Interaction Type Selector */}
+                <div className="flex flex-wrap gap-1">
+                  {INTERACTION_TYPES.map((type) => (
+                    <Button
+                      key={type.value}
+                      variant={interactionType === type.value ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setInteractionType(type.value)}
+                    >
+                      <span className="mr-1">{type.icon}</span>
+                      {type.label}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* AI Command - only for types that need AI */}
+                {requiresAI ? (
+                  <Textarea
+                    placeholder="AI'ya talimat verin... (ör: Bu içeriğe olumlu ve destekleyici yanıt yazın)"
+                    value={aiCommand}
+                    onChange={(e) => setAiCommand(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+                    {interactionType === "like"
+                      ? `${selectedPersonaIds.size} persona bu içeriği beğenecek.`
+                      : `${selectedPersonaIds.size} persona bu içeriği repost yapacak.`}
+                    {" "}AI içerik üretimi gerekmez.
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
@@ -585,19 +819,25 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
 
                   <Button
                     onClick={handleGenerate}
-                    disabled={generating || !aiCommand.trim() || selectedPersonaIds.size === 0}
+                    disabled={
+                      generating ||
+                      (requiresAI && !aiCommand.trim()) ||
+                      selectedPersonaIds.size === 0
+                    }
                     className="flex-1 h-8"
                     size="sm"
                   >
                     {generating ? (
                       <>
                         <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        Üretiliyor... ({selectedPersonaIds.size} persona)
+                        {requiresAI ? "Üretiliyor" : "Planlanıyor"}... ({selectedPersonaIds.size})
                       </>
                     ) : (
                       <>
                         <Zap className="mr-2 h-3.5 w-3.5" />
-                        Üret ({selectedPersonaIds.size} persona)
+                        {requiresAI
+                          ? `Üret (${selectedPersonaIds.size} persona)`
+                          : `Planla (${selectedPersonaIds.size} persona)`}
                       </>
                     )}
                   </Button>
@@ -607,16 +847,37 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
 
             {/* Persona Selector */}
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    Persona Seçimi ({selectedPersonaIds.size}/{personas.length})
+                    Persona Seçimi ({selectedPersonaIds.size}/{filteredPersonas.length})
                   </CardTitle>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={selectAllPersonas}>
-                    {selectedPersonaIds.size === personas.length ? "Hiçbirini Seçme" : "Tümünü Seç"}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {activeFilterCount > 0 && (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAllFilters}>
+                        Temizle
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={selectAllPersonas}>
+                      {filteredPersonas.length > 0 && filteredPersonas.every((p) => selectedPersonaIds.has(p.id))
+                        ? "Seçimi Kaldır"
+                        : "Tümünü Seç"}
+                    </Button>
+                  </div>
                 </div>
-                {/* Filters */}
+
+                {/* Search */}
+                <div className="relative mt-2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Persona ara..."
+                    value={personaSearch}
+                    onChange={(e) => setPersonaSearch(e.target.value)}
+                    className="h-7 text-xs pl-7"
+                  />
+                </div>
+
+                {/* Filters Row 1: Country + Language */}
                 <div className="flex gap-2 mt-2">
                   <Select value={filterCountry} onValueChange={setFilterCountry}>
                     <SelectTrigger className="h-7 text-xs flex-1">
@@ -641,18 +902,57 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Filters Row 2: Tags */}
+                {filterOptions?.tags && filterOptions.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {filterOptions.tags.map((tag) => (
+                      <Badge
+                        key={tag.id}
+                        variant={filterTagIds.includes(tag.id) ? "default" : "outline"}
+                        className="text-xs cursor-pointer h-5 px-1.5"
+                        style={
+                          filterTagIds.includes(tag.id)
+                            ? { backgroundColor: tag.color, borderColor: tag.color }
+                            : { borderColor: tag.color, color: tag.color }
+                        }
+                        onClick={() => toggleTagFilter(tag.id)}
+                      >
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Filters Row 3: Roles */}
+                {filterOptions?.roles && filterOptions.roles.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {filterOptions.roles.map((role) => (
+                      <Badge
+                        key={role.id}
+                        variant={filterRoleIds.includes(role.id) ? "default" : "outline"}
+                        className="text-xs cursor-pointer h-5 px-1.5"
+                        onClick={() => toggleRoleFilter(role.id)}
+                      >
+                        {role.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="max-h-[300px] overflow-y-auto space-y-1 pt-0">
                 {personasLoading ? (
                   <div className="flex justify-center py-4">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
-                ) : personas.length === 0 ? (
+                ) : filteredPersonas.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Aktif persona bulunamadı
+                    {activeFilterCount > 0 || personaSearch
+                      ? "Filtreye uygun persona bulunamadı"
+                      : "Aktif persona bulunamadı"}
                   </p>
                 ) : (
-                  personas.map((persona) => (
+                  filteredPersonas.map((persona) => (
                     <div
                       key={persona.id}
                       className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
@@ -690,10 +990,10 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
           {/* Response Review Panel */}
           {responses.length > 0 && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    Üretilen Yanıtlar ({responses.length})
+                    Yanıtlar ({responses.length})
                   </CardTitle>
                   <div className="flex gap-2">
                     {pendingCount > 0 && (
@@ -724,144 +1024,181 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                     )}
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                {responses.map((response) => (
-                  <div
-                    key={response.id}
-                    className={`p-3 rounded-lg border ${
-                      response.status === "approved"
-                        ? "border-green-200 bg-green-50/50"
-                        : response.status === "rejected"
-                        ? "border-red-200 bg-red-50/50 opacity-60"
-                        : response.status === "published"
-                        ? "border-blue-200 bg-blue-50/50"
-                        : response.status === "failed"
-                        ? "border-red-200 bg-red-50/50"
-                        : ""
-                    }`}
-                  >
-                    {/* Response Header */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <Avatar className="h-6 w-6">
-                        {response.personaAvatar && (
-                          <AvatarImage
-                            src={response.personaAvatar}
-                            alt={response.personaName}
-                          />
-                        )}
-                        <AvatarFallback className="text-xs">
-                          {getInitials(response.personaName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium">
-                        {response.personaName}
-                      </span>
-                      {response.personaLanguage && (
-                        <span className="text-xs text-muted-foreground">
-                          ({response.personaLanguage})
-                        </span>
-                      )}
-                      {response.personaCountry && (
-                        <span className="text-xs text-muted-foreground">
-                          · {response.personaCountry}
-                        </span>
-                      )}
-                      <Badge
-                        className={`ml-auto text-xs ${
-                          STATUS_COLORS[response.status] || ""
-                        }`}
-                      >
-                        {STATUS_LABELS[response.status] || response.status}
-                      </Badge>
-                    </div>
 
-                    {/* Response Content */}
-                    {editingId === response.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          rows={3}
-                          className="resize-none text-sm"
-                        />
-                        <div className="flex gap-1">
+                {/* Mini Stats Bar */}
+                <div className="flex gap-3 mt-2">
+                  {[
+                    { label: "Bekleyen", count: pendingCount, color: "text-yellow-600 bg-yellow-50" },
+                    { label: "Onaylı", count: approvedCount, color: "text-green-600 bg-green-50" },
+                    { label: "Yayınlanan", count: publishedCount, color: "text-blue-600 bg-blue-50" },
+                    { label: "Başarısız", count: failedCount, color: "text-red-600 bg-red-50" },
+                  ].filter((s) => s.count > 0).map((stat) => (
+                    <div key={stat.label} className={`text-xs px-2 py-1 rounded-md ${stat.color}`}>
+                      {stat.count} {stat.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Status Filter Tabs */}
+                <div className="flex gap-1 mt-2 flex-wrap">
+                  {responseStatusTabs
+                    .filter((tab) => tab.count > 0 || tab.value === "all")
+                    .map((tab) => (
+                      <Button
+                        key={tab.value}
+                        variant={responseStatusFilter === tab.value ? "default" : "outline"}
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={() => setResponseStatusFilter(tab.value)}
+                      >
+                        {tab.label} ({tab.count})
+                      </Button>
+                    ))}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-2 max-h-[600px] overflow-y-auto">
+                {filteredResponses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Bu filtreye uygun yanıt yok
+                  </p>
+                ) : (
+                  filteredResponses.map((response) => (
+                    <div
+                      key={response.id}
+                      className={`p-3 rounded-lg border ${
+                        response.status === "approved"
+                          ? "border-green-200 bg-green-50/50"
+                          : response.status === "rejected"
+                          ? "border-red-200 bg-red-50/50 opacity-60"
+                          : response.status === "published"
+                          ? "border-blue-200 bg-blue-50/50"
+                          : response.status === "failed"
+                          ? "border-red-200 bg-red-50/50"
+                          : ""
+                      }`}
+                    >
+                      {/* Response Header */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="h-6 w-6">
+                          {response.personaAvatar && (
+                            <AvatarImage
+                              src={response.personaAvatar}
+                              alt={response.personaName}
+                            />
+                          )}
+                          <AvatarFallback className="text-xs">
+                            {getInitials(response.personaName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">
+                          {response.personaName}
+                        </span>
+                        {response.personaLanguage && (
+                          <span className="text-xs text-muted-foreground">
+                            ({response.personaLanguage})
+                          </span>
+                        )}
+                        {response.personaCountry && (
+                          <span className="text-xs text-muted-foreground">
+                            · {response.personaCountry}
+                          </span>
+                        )}
+                        <Badge
+                          className={`ml-auto text-xs ${
+                            STATUS_COLORS[response.status] || ""
+                          }`}
+                        >
+                          {STATUS_LABELS[response.status] || response.status}
+                        </Badge>
+                      </div>
+
+                      {/* Response Content */}
+                      {editingId === response.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            rows={3}
+                            className="resize-none text-sm"
+                          />
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => handleSaveEdit(response.id)}
+                            >
+                              Kaydet
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditContent("");
+                              }}
+                            >
+                              İptal
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">
+                          {response.editedContent || response.generatedContent}
+                        </p>
+                      )}
+
+                      {response.errorMessage && (
+                        <p className="text-xs text-red-500 mt-1">{response.errorMessage}</p>
+                      )}
+
+                      {response.scheduledAt && (
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(response.scheduledAt).toLocaleString("tr-TR")}
+                        </p>
+                      )}
+
+                      {/* Response Actions */}
+                      {response.status === "pending_review" && (
+                        <div className="flex gap-1 mt-2">
                           <Button
+                            variant="outline"
                             size="sm"
                             className="h-7 text-xs"
-                            onClick={() => handleSaveEdit(response.id)}
+                            onClick={() => handleApprove(response.id)}
                           >
-                            Kaydet
+                            <Check className="mr-1 h-3 w-3" />
+                            Onayla
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleReject(response.id)}
+                          >
+                            <X className="mr-1 h-3 w-3" />
+                            Reddet
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-7 text-xs"
                             onClick={() => {
-                              setEditingId(null);
-                              setEditContent("");
+                              setEditingId(response.id);
+                              setEditContent(
+                                response.editedContent || response.generatedContent
+                              );
                             }}
                           >
-                            İptal
+                            <Edit3 className="mr-1 h-3 w-3" />
+                            Düzenle
                           </Button>
                         </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap">
-                        {response.editedContent || response.generatedContent}
-                      </p>
-                    )}
-
-                    {response.errorMessage && (
-                      <p className="text-xs text-red-500 mt-1">{response.errorMessage}</p>
-                    )}
-
-                    {response.scheduledAt && (
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(response.scheduledAt).toLocaleString("tr-TR")}
-                      </p>
-                    )}
-
-                    {/* Response Actions */}
-                    {response.status === "pending_review" && (
-                      <div className="flex gap-1 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleApprove(response.id)}
-                        >
-                          <Check className="mr-1 h-3 w-3" />
-                          Onayla
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleReject(response.id)}
-                        >
-                          <X className="mr-1 h-3 w-3" />
-                          Reddet
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            setEditingId(response.id);
-                            setEditContent(
-                              response.editedContent || response.generatedContent
-                            );
-                          }}
-                        >
-                          <Edit3 className="mr-1 h-3 w-3" />
-                          Düzenle
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           )}

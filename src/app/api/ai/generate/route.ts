@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       results,
       prompt,
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

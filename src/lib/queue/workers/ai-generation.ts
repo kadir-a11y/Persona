@@ -60,7 +60,7 @@ export function createAIGenerationWorker() {
           scheduledAt: job.data.scheduledAt ? new Date(job.data.scheduledAt) : null,
           aiGenerated: true,
           aiPrompt: prompt,
-          aiModel: "gemini-2.0-flash-lite",
+          aiModel: "gemini-2.5-flash-lite",
         })
         .returning();
 
