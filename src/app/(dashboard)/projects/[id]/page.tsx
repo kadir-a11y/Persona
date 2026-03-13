@@ -518,7 +518,7 @@ export default function ProjectDetailPage({
   // Core state
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("workspace");
 
   // Delete confirmation
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -701,14 +701,16 @@ export default function ProjectDetailPage({
     }
   }, [id, timelineFilterType]);
 
+  // Always load stats for top bar
+  useEffect(() => {
+    if (!statsLoaded) fetchStats();
+  }, [statsLoaded, fetchStats]);
+
   // Lazy load on tab change
   useEffect(() => {
-    if (activeTab === "overview" && !statsLoaded) fetchStats();
-    if (activeTab === "team" && !teamLoaded) fetchTeam();
     if (activeTab === "tasks" && !tasksLoaded) fetchKanbanTasks();
-    if (activeTab === "mentions") fetchMentions();
     if (activeTab === "timeline") fetchTimeline();
-  }, [activeTab, statsLoaded, teamLoaded, tasksLoaded, fetchStats, fetchTeam, fetchKanbanTasks, fetchMentions, fetchTimeline]);
+  }, [activeTab, tasksLoaded, fetchKanbanTasks, fetchTimeline]);
 
   // ── Actions ──────────────────────────────────────────────────────────
 
@@ -946,89 +948,102 @@ export default function ProjectDetailPage({
   // ── Render ───────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* ── Top Bar ──────────────────────────────────────────────────── */}
-      <div>
-        <Button variant="ghost" size="sm" className="mb-4" asChild>
+    <div className="space-y-3">
+      {/* ── Compact Header ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
           <Link href="/projects">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Projeler
+            <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
 
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
-            <Badge variant="outline" className={TYPE_COLORS[project.type] || ""}>
-              {TYPE_LABELS[project.type] || project.type}
-            </Badge>
-            <Badge variant="outline" className={SEVERITY_COLORS[project.severity] || ""}>
-              {SEVERITY_LABELS[project.severity] || project.severity}
-            </Badge>
-          </div>
+        <h1 className="text-xl font-bold tracking-tight truncate">{project.name}</h1>
 
-          <div className="flex items-center gap-2">
-            <Select
-              value={project.status}
-              onValueChange={handleStatusChange}
-              disabled={changingStatus}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <Badge variant="outline" className={`text-xs shrink-0 ${TYPE_COLORS[project.type] || ""}`}>
+          {TYPE_LABELS[project.type] || project.type}
+        </Badge>
+        <Badge variant="outline" className={`text-xs shrink-0 ${SEVERITY_COLORS[project.severity] || ""}`}>
+          {SEVERITY_LABELS[project.severity] || project.severity}
+        </Badge>
 
-            <Button
-              variant="outline"
-              size="icon"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <Select
+            value={project.status}
+            onValueChange={handleStatusChange}
+            disabled={changingStatus}
+          >
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={openTeamDialog}
+            title="Ekip Yönetimi"
+          >
+            <Users className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => setShowDeleteDialog(true)}
+            title="Projeyi Sil"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
-
-        {project.description && (
-          <p className="text-muted-foreground mt-2 max-w-3xl">{project.description}</p>
-        )}
       </div>
 
-      <Separator />
+      {/* ── Quick Stats Bar ──────────────────────────────────────────── */}
+      {statsLoaded && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+          <span className="flex items-center gap-1">
+            <MessageSquare className="h-3 w-3" />
+            <span className="font-medium text-foreground">{totalMentions}</span> bahsetme
+          </span>
+          <span className="flex items-center gap-1">
+            <TrendingDown className="h-3 w-3 text-red-500" />
+            <span className="font-medium text-foreground">%{negativeRatio}</span> negatif
+          </span>
+          <span className="flex items-center gap-1">
+            <ListTodo className="h-3 w-3 text-blue-500" />
+            <span className="font-medium text-foreground">{activeTasks}</span> aktif görev
+          </span>
+          <span className="flex items-center gap-1">
+            <Users className="h-3 w-3 text-purple-500" />
+            <span className="font-medium text-foreground">{teamSize}</span> ekip
+          </span>
+          {project.severityScore > 0 && (
+            <span className="flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Skor: <span className="font-medium text-foreground">{project.severityScore}</span>
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* ── Tabs ─────────────────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Genel Bakış</span>
-          </TabsTrigger>
-          <TabsTrigger value="team" className="gap-2">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Ekip</span>
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-2">
-            <ListTodo className="h-4 w-4" />
-            <span className="hidden sm:inline">Görevler</span>
-          </TabsTrigger>
-          <TabsTrigger value="mentions" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Bahsetmeler</span>
-          </TabsTrigger>
+      {/* ── Tabs (3 ana tab) ─────────────────────────────────────────── */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="workspace" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Çalışma Alanı</span>
           </TabsTrigger>
-          <TabsTrigger value="organic" className="gap-2">
-            <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">Organik</span>
+          <TabsTrigger value="tasks" className="gap-2">
+            <ListTodo className="h-4 w-4" />
+            <span className="hidden sm:inline">Görevler</span>
           </TabsTrigger>
           <TabsTrigger value="timeline" className="gap-2">
             <Clock className="h-4 w-4" />
@@ -1037,453 +1052,14 @@ export default function ProjectDetailPage({
         </TabsList>
 
         {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 1: GENEL BAKIŞ (Overview)                              */}
+        {/* TAB 1: ÇALIŞMA ALANI (Workspace) — ANA TAB                 */}
         {/* ════════════════════════════════════════════════════════════ */}
-        <TabsContent value="overview" className="space-y-6">
-          {!statsLoaded ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-              <p className="text-sm text-muted-foreground">İstatistikler yükleniyor...</p>
-            </div>
-          ) : (
-            <>
-              {/* Stat Cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Toplam Bahsetme</CardTitle>
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{totalMentions}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Negatif Oran</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-red-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">%{negativeRatio}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Aktif Görevler</CardTitle>
-                    <ListTodo className="h-4 w-4 text-blue-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{activeTasks}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ekip Büyüklüğü</CardTitle>
-                    <Users className="h-4 w-4 text-purple-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{teamSize}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Severity Score */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Şiddet Skoru</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <div className="h-3 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            project.severityScore >= 75
-                              ? "bg-red-500"
-                              : project.severityScore >= 50
-                              ? "bg-orange-500"
-                              : project.severityScore >= 25
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${project.severityScore}%` }}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-2xl font-bold min-w-[3rem] text-right">
-                      {project.severityScore}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Charts Row */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Conversation Intensity */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Konuşma Yoğunluğu</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {stats?.mentionTrend && stats.mentionTrend.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <AreaChart data={stats.mentionTrend}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="date"
-                            tickFormatter={formatShortDate}
-                            fontSize={12}
-                          />
-                          <YAxis fontSize={12} />
-                          <Tooltip
-                            labelFormatter={(label) => formatShortDate(label as string)}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="count"
-                            stroke="#3b82f6"
-                            fill="#3b82f6"
-                            fillOpacity={0.2}
-                            name="Bahsetme"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Henüz veri yok
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Platform Distribution */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Platform Dağılımı</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {stats?.platformStats && stats.platformStats.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                          <Pie
-                            data={stats.platformStats}
-                            dataKey="count"
-                            nameKey="platform"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            label={({ platform, count }) =>
-                              `${PLATFORM_LABELS[platform] || platform}: ${count}`
-                            }
-                          >
-                            {stats.platformStats.map((_, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={PIE_COLORS[index % PIE_COLORS.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value: number, name: string) => [
-                              value,
-                              PLATFORM_LABELS[name] || name,
-                            ]}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Henüz veri yok
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Sentiment Chart & Project Info */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Sentiment Distribution */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Duygu Dağılımı</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {stats?.mentionStats && stats.mentionStats.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={stats.mentionStats}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="sentiment"
-                            tickFormatter={(val) => SENTIMENT_LABELS[val] || val}
-                            fontSize={12}
-                          />
-                          <YAxis fontSize={12} />
-                          <Tooltip
-                            labelFormatter={(label) => SENTIMENT_LABELS[label as string] || label}
-                          />
-                          <Legend
-                            formatter={() => "Bahsetme Sayısı"}
-                          />
-                          <Bar dataKey="count" name="Bahsetme Sayısı">
-                            {stats.mentionStats.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={SENTIMENT_COLORS[entry.sentiment] || "#6b7280"}
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Henüz veri yok
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Project Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Proje Bilgileri</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium">Müşteri</p>
-                        <p className="text-sm text-muted-foreground">
-                          {project.clientName || "-"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Globe className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Diller</p>
-                        {project.languages && project.languages.length > 0 ? (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {project.languages.map((code) => (
-                              <Badge key={code} variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
-                                {LANGUAGE_NAMES[code] || code}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">-</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Hash className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Anahtar Kelimeler</p>
-                        {project.keywords && project.keywords.length > 0 ? (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {project.keywords.map((kw, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {kw}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">-</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Tarihler</p>
-                        <p className="text-sm text-muted-foreground">
-                          Başlangıç: {formatDate(project.startedAt)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Çözüm: {formatDate(project.resolvedAt)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Oluşturma: {formatDate(project.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                    {stats?.pendingResponses !== undefined && stats.pendingResponses > 0 && (
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">Bekleyen Yanıtlar</p>
-                          <p className="text-sm text-muted-foreground">
-                            {stats.pendingResponses} yanıt bekleniyor
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
+        <TabsContent value="workspace" className="space-y-4">
+          <WorkspaceTab projectId={id} />
         </TabsContent>
 
         {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 2: EKIP (Team)                                         */}
-        {/* ════════════════════════════════════════════════════════════ */}
-        <TabsContent value="team" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Ekip Üyeleri</h2>
-            <Button onClick={openTeamDialog} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Ekip Üyesi Ekle
-            </Button>
-          </div>
-
-          {teamLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-              <p className="text-sm text-muted-foreground">Ekip yükleniyor...</p>
-            </div>
-          ) : team.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Henüz ekip üyesi eklenmemiş.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {team.map((assignment) => {
-                const isExpanded = expandedTeamIds.has(assignment.id);
-                const hasResolved =
-                  (assignment.assignmentType === "role" || assignment.assignmentType === "role_category") &&
-                  assignment.resolvedPersonas &&
-                  assignment.resolvedPersonas.length > 0;
-
-                return (
-                  <Card key={assignment.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {/* Expand toggle for role/category */}
-                          {hasResolved ? (
-                            <button
-                              onClick={() => {
-                                const next = new Set(expandedTeamIds);
-                                if (isExpanded) next.delete(assignment.id);
-                                else next.add(assignment.id);
-                                setExpandedTeamIds(next);
-                              }}
-                              className="p-1 hover:bg-muted rounded"
-                            >
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </button>
-                          ) : (
-                            <div className="w-6" />
-                          )}
-
-                          {/* Type icon */}
-                          {assignment.assignmentType === "persona" ? (
-                            <User className="h-5 w-5 text-blue-500" />
-                          ) : assignment.assignmentType === "role" ? (
-                            <UserCog className="h-5 w-5 text-purple-500" />
-                          ) : (
-                            <FolderOpen className="h-5 w-5 text-orange-500" />
-                          )}
-
-                          {/* Name */}
-                          <div>
-                            <p className="font-medium">
-                              {assignment.assignmentType === "persona"
-                                ? assignment.persona?.name || "Bilinmeyen Persona"
-                                : assignment.assignmentType === "role"
-                                ? assignment.role?.name || "Bilinmeyen Rol"
-                                : assignment.roleCategory?.name || "Bilinmeyen Kategori"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {assignment.assignmentType === "persona"
-                                ? "Persona"
-                                : assignment.assignmentType === "role"
-                                ? "Rol"
-                                : "Kategori"}
-                              {assignment.resolvedCount > 0 && ` (${assignment.resolvedCount} persona)`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className={TEAM_ROLE_COLORS[assignment.teamRole] || ""}
-                          >
-                            {TEAM_ROLE_LABELS[assignment.teamRole] || assignment.teamRole}
-                          </Badge>
-                          {!assignment.isActive && (
-                            <Badge variant="outline" className="bg-gray-100 text-gray-500">
-                              Pasif
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveTeamMember(assignment.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      {assignment.notes && (
-                        <p className="text-sm text-muted-foreground mt-2 ml-12">
-                          {assignment.notes}
-                        </p>
-                      )}
-
-                      {/* Expanded resolved personas */}
-                      {isExpanded && hasResolved && (
-                        <div className="mt-3 ml-12 space-y-2">
-                          <Separator />
-                          <p className="text-xs font-medium text-muted-foreground mt-2">
-                            Eşleşen Personalar ({assignment.resolvedCount})
-                          </p>
-                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {assignment.resolvedPersonas!.map((p) => (
-                              <div
-                                key={p.id}
-                                className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
-                              >
-                                {p.avatarUrl ? (
-                                  <img
-                                    src={p.avatarUrl}
-                                    alt={p.name}
-                                    className="h-6 w-6 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                                    <User className="h-3 w-3" />
-                                  </div>
-                                )}
-                                <span className="text-sm truncate">
-                                  {p.name}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 3: GÖREVLER (Tasks) - Kanban Board                     */}
+        {/* TAB 2: GÖREVLER (Tasks) - Kanban Board                     */}
         {/* ════════════════════════════════════════════════════════════ */}
         <TabsContent value="tasks" className="space-y-6">
           <div className="flex items-center justify-between">
@@ -1611,162 +1187,7 @@ export default function ProjectDetailPage({
         </TabsContent>
 
         {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 4: BAHSETMELER (Mentions)                              */}
-        {/* ════════════════════════════════════════════════════════════ */}
-        <TabsContent value="mentions" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Bahsetmeler</h2>
-            <Button onClick={() => setShowMentionDialog(true)} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Bahsetme Ekle
-            </Button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <Select value={mentionFilterPlatform} onValueChange={setMentionFilterPlatform}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Platformlar</SelectItem>
-                {Object.entries(PLATFORM_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={mentionFilterSentiment} onValueChange={setMentionFilterSentiment}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Duygu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Duygular</SelectItem>
-                {Object.entries(SENTIMENT_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={mentionFilterResponse} onValueChange={setMentionFilterResponse}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Yanıt Durumu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Durumlar</SelectItem>
-                {Object.entries(RESPONSE_STATUS_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {mentionsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-              <p className="text-sm text-muted-foreground">Bahsetmeler yükleniyor...</p>
-            </div>
-          ) : mentions.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Henüz bahsetme yok.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {mentions.map((mention) => (
-                <Card key={mention.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {PLATFORM_LABELS[mention.platform] || mention.platform}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="text-xs"
-                            style={{
-                              borderColor: SENTIMENT_COLORS[mention.sentiment],
-                              color: SENTIMENT_COLORS[mention.sentiment],
-                            }}
-                          >
-                            {SENTIMENT_LABELS[mention.sentiment] || mention.sentiment}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${RESPONSE_STATUS_COLORS[mention.responseStatus] || ""}`}
-                          >
-                            {RESPONSE_STATUS_LABELS[mention.responseStatus] || mention.responseStatus}
-                          </Badge>
-                        </div>
-
-                        <p className="text-sm leading-relaxed line-clamp-3">
-                          {mention.content}
-                        </p>
-
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          {mention.sourceAuthor && (
-                            <span className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {mention.sourceAuthor}
-                            </span>
-                          )}
-                          {mention.reachEstimate !== null && (
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              {mention.reachEstimate.toLocaleString("tr-TR")} erişim
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Activity className="h-3 w-3" />
-                            {mention.engagementCount} etkileşim
-                          </span>
-                          <span>{formatRelativeTime(mention.detectedAt)}</span>
-                        </div>
-                      </div>
-
-                      {mention.sourceUrl && (
-                        <a
-                          href={mention.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
-                        >
-                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                        </a>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 5: ÇALIŞMA ALANI (Workspace)                            */}
-        {/* ════════════════════════════════════════════════════════════ */}
-        <TabsContent value="workspace" className="space-y-6">
-          <WorkspaceTab projectId={id} />
-        </TabsContent>
-
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 6: ORGANİK AKTİVİTE                                    */}
-        {/* ════════════════════════════════════════════════════════════ */}
-        <TabsContent value="organic" className="space-y-6">
-          <OrganicTab projectId={id} />
-        </TabsContent>
-
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 7: ZAMAN ÇİZELGESİ (Timeline)                          */}
+        {/* TAB 3: ZAMAN ÇİZELGESİ (Timeline)                          */}
         {/* ════════════════════════════════════════════════════════════ */}
         <TabsContent value="timeline" className="space-y-6">
           <div className="flex items-center justify-between">
