@@ -5,6 +5,8 @@ import {
   projectMentions,
   projectTasks,
   projectPlaybooks,
+  workspaceResponses,
+  activityLog,
 } from "@/lib/db/schema";
 import { eq, and, desc, sql, ilike, or } from "drizzle-orm";
 import type { ProjectCreateInput, ProjectUpdateInput } from "@/lib/validators/project";
@@ -15,7 +17,8 @@ export async function getProjects(
   filters?: { type?: string; status?: string; severity?: string; search?: string },
   isAdmin = false
 ) {
-  const conditions = isAdmin ? [] : [eq(projects.userId, userId)];
+  // Tüm kullanıcılar tüm projeleri görebilir (yetkilendirme sonra eklenecek)
+  const conditions: ReturnType<typeof eq>[] = [];
 
   if (filters?.type) conditions.push(eq(projects.type, filters.type));
   if (filters?.status) conditions.push(eq(projects.status, filters.status));
@@ -32,7 +35,7 @@ export async function getProjects(
   const projectList = await db
     .select()
     .from(projects)
-    .where(and(...conditions))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(projects.createdAt));
 
   // Her proje için özet istatistikleri ekle
@@ -70,11 +73,12 @@ export async function getProjects(
   return enriched;
 }
 
-export async function getProjectById(projectId: string, userId: string, isAdmin = false) {
+export async function getProjectById(projectId: string, _userId: string, _isAdmin = false) {
+  // Tüm kullanıcılar tüm projelere erişebilir (yetkilendirme sonra eklenecek)
   const [project] = await db
     .select()
     .from(projects)
-    .where(isAdmin ? eq(projects.id, projectId) : and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .where(eq(projects.id, projectId))
     .limit(1);
 
   return project ?? null;
@@ -263,6 +267,26 @@ export async function getProjectStats(projectId: string) {
     .groupBy(sql`date_trunc('day', ${projectMentions.detectedAt})`)
     .orderBy(sql`date_trunc('day', ${projectMentions.detectedAt})`);
 
+  // Proje persona sayısı (ekip üzerinden)
+  const [personaCount] = await db
+    .select({ count: sql<number>`count(distinct ${projectTeam.personaId})::int` })
+    .from(projectTeam)
+    .where(eq(projectTeam.projectId, projectId));
+
+  // Toplam içerik (workspace response) sayısı
+  const [contentCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(workspaceResponses)
+    .where(eq(workspaceResponses.projectId, projectId));
+
+  // Son aktivite zamanı
+  const [lastActivity] = await db
+    .select({ createdAt: activityLog.createdAt })
+    .from(activityLog)
+    .where(eq(activityLog.entityId, projectId))
+    .orderBy(desc(activityLog.createdAt))
+    .limit(1);
+
   return {
     mentionStats,
     platformStats,
@@ -271,6 +295,9 @@ export async function getProjectStats(projectId: string) {
     teamSize: teamSize?.count ?? 0,
     pendingResponses: pendingResponses?.count ?? 0,
     mentionTrend,
+    personaCount: personaCount?.count ?? 0,
+    contentCount: contentCount?.count ?? 0,
+    lastActivityAt: lastActivity?.createdAt ?? null,
   };
 }
 

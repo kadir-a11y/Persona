@@ -125,6 +125,20 @@ export async function deletePersona(id: string, userId: string, isAdmin = false)
   return persona;
 }
 
+export async function checkDuplicatePersonaName(name: string, excludeId?: string) {
+  const conditions = [ilike(personas.name, name.trim())];
+  if (excludeId) {
+    conditions.push(sql`${personas.id} != ${excludeId}`);
+  }
+  const result = await db
+    .select({ id: personas.id, name: personas.name })
+    .from(personas)
+    .where(and(...conditions))
+    .limit(5);
+
+  return result;
+}
+
 export async function getPersonaCount(userId: string, isAdmin = false) {
   const [result] = await db
     .select({ count: sql<number>`count(*)::int` })

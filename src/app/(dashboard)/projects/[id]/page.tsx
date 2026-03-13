@@ -88,6 +88,8 @@ import {
   Pause,
   RotateCcw,
   Send,
+  UserCheck,
+  FileBarChart,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -137,6 +139,9 @@ interface ProjectStats {
   teamSize: number;
   pendingResponses: number;
   mentionTrend: { date: string; count: number }[];
+  personaCount: number;
+  contentCount: number;
+  lastActivityAt: string | null;
 }
 
 interface TeamAssignment {
@@ -1043,7 +1048,15 @@ export default function ProjectDetailPage({
 
       {/* ── Quick Stats Bar ──────────────────────────────────────────── */}
       {statsLoaded && (
-        <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
+          <span className="flex items-center gap-1">
+            <UserCheck className="h-3 w-3 text-emerald-500" />
+            <span className="font-medium text-foreground">{stats?.personaCount ?? 0}</span> persona
+          </span>
+          <span className="flex items-center gap-1">
+            <FileBarChart className="h-3 w-3 text-indigo-500" />
+            <span className="font-medium text-foreground">{stats?.contentCount ?? 0}</span> içerik
+          </span>
           <span className="flex items-center gap-1">
             <MessageSquare className="h-3 w-3" />
             <span className="font-medium text-foreground">{totalMentions}</span> bahsetme
@@ -1060,6 +1073,12 @@ export default function ProjectDetailPage({
             <Users className="h-3 w-3 text-purple-500" />
             <span className="font-medium text-foreground">{teamSize}</span> ekip
           </span>
+          {stats?.lastActivityAt && (
+            <span className="flex items-center gap-1">
+              <Activity className="h-3 w-3 text-orange-500" />
+              Son: <span className="font-medium text-foreground">{new Date(stats.lastActivityAt).toLocaleDateString("tr-TR")}</span>
+            </span>
+          )}
           {project.severityScore > 0 && (
             <span className="flex items-center gap-1">
               <Shield className="h-3 w-3" />

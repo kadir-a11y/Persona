@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Share2,
   BadgeCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -448,10 +449,33 @@ function CreatePersonaDialog({
   const [formData, setFormData] = useState<CreateFormData>({ ...defaultFormData });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [duplicates, setDuplicates] = useState<{ id: string; name: string }[]>([]);
+  const duplicateTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   function resetForm() {
     setFormData({ ...defaultFormData });
     setError("");
+    setDuplicates([]);
+  }
+
+  function handleNameChange(name: string) {
+    setFormData((f) => ({ ...f, name }));
+    if (duplicateTimer.current) clearTimeout(duplicateTimer.current);
+    if (name.trim().length < 2) {
+      setDuplicates([]);
+      return;
+    }
+    duplicateTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/personas/check-name?name=${encodeURIComponent(name.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDuplicates(data.duplicates || []);
+        }
+      } catch {
+        // ignore
+      }
+    }, 400);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -525,9 +549,18 @@ function CreatePersonaDialog({
               id="create-name"
               placeholder="ornek_kullanıcı"
               value={formData.name}
-              onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+              onChange={(e) => handleNameChange(e.target.value)}
               disabled={isSubmitting}
             />
+            {duplicates.length > 0 && (
+              <div className="flex items-start gap-2 rounded-md border border-yellow-300 bg-yellow-50 p-2 text-xs text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-medium">Benzer isimde {duplicates.length} persona mevcut:</span>{" "}
+                  {duplicates.map((d) => d.name).join(", ")}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bio */}
