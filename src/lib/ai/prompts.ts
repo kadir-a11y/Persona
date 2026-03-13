@@ -275,10 +275,10 @@ ${PLATFORM_GUIDELINES[platform] || ""}
 CONTENT TYPE: ${contentType}
 ${sourceSection}
 
-USER COMMAND: ${options.aiCommand}
+USER COMMAND (may be in any language — follow the instruction regardless of its language): ${options.aiCommand}
 ${sentimentSection}
 
-LANGUAGE: Write entirely in ${langName} (${outputLang}). All output must be in this language.
+LANGUAGE: Write entirely in ${langName} (${outputLang}). All output must be in this language. The user command above may be written in a different language — that is normal. Always produce your response in ${langName}.
 
 RULES:
 1. Stay fully in character as "${persona.name}".

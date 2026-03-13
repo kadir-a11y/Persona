@@ -108,6 +108,23 @@ const PLATFORM_LABELS: Record<string, string> = {
   tiktok: "TikTok",
 };
 
+const CONTENT_LANGUAGES = [
+  { value: "auto", label: "Otomatik (Persona Dili)" },
+  { value: "tr", label: "Türkçe" },
+  { value: "en", label: "English" },
+  { value: "ar", label: "العربية" },
+  { value: "de", label: "Deutsch" },
+  { value: "fr", label: "Français" },
+  { value: "es", label: "Español" },
+  { value: "ru", label: "Русский" },
+  { value: "pt", label: "Português" },
+  { value: "it", label: "Italiano" },
+  { value: "nl", label: "Nederlands" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "zh", label: "中文" },
+];
+
 const SENTIMENT_COLORS: Record<string, string> = {
   positive: "bg-green-100 text-green-800",
   negative: "bg-red-100 text-red-800",
@@ -156,6 +173,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   const [aiCommand, setAiCommand] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState("twitter");
   const [interactionType, setInteractionType] = useState("reply");
+  const [contentLanguage, setContentLanguage] = useState("auto");
 
   // Persona selection state
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -291,6 +309,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contentType: interactionType,
+            language: contentLanguage !== "auto" ? contentLanguage : undefined,
           }),
         }
       );
@@ -805,6 +824,22 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                       <SelectItem value="tiktok">TikTok</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {requiresAI && (
+                    <Select value={contentLanguage} onValueChange={setContentLanguage}>
+                      <SelectTrigger className="w-[140px] h-8 text-sm">
+                        <Globe className="mr-1 h-3.5 w-3.5 shrink-0" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTENT_LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>
+                            {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
 
                   <Button
                     onClick={handleGenerate}
