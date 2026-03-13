@@ -23,6 +23,29 @@ export async function logActivity(
   return log;
 }
 
+/** Log a workspace action (generate, approve, reject, publish, like, retweet etc.) */
+export async function logWorkspaceAction(
+  userId: string,
+  projectId: string,
+  action: string,
+  details: {
+    personaIds?: string[];
+    personaNames?: string[];
+    contentType?: string;
+    platform?: string;
+    sessionId?: string;
+    responseId?: string;
+    sourceContentId?: string;
+    count?: number;
+    [key: string]: unknown;
+  }
+) {
+  return logActivity(userId, "workspace", projectId, action, {
+    ...details,
+    projectId,
+  });
+}
+
 export async function getActivityLogs(
   userId: string,
   limit = 50,
@@ -41,6 +64,47 @@ export async function getActivityLogs(
       .offset(offset);
   }
   return query
+    .orderBy(desc(activityLog.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/** Get activity logs filtered by projectId (stored in details JSONB) */
+export async function getProjectActivityLogs(
+  projectId: string,
+  limit = 100,
+  offset = 0,
+  actionFilter?: string
+) {
+  const conditions = [
+    sql`${activityLog.details}->>'projectId' = ${projectId}`,
+  ];
+
+  if (actionFilter && actionFilter !== "all") {
+    conditions.push(eq(activityLog.action, actionFilter));
+  }
+
+  return db
+    .select()
+    .from(activityLog)
+    .where(and(...conditions))
+    .orderBy(desc(activityLog.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/** Get activity logs for a specific persona */
+export async function getPersonaActivityLogs(
+  personaId: string,
+  limit = 50,
+  offset = 0
+) {
+  return db
+    .select()
+    .from(activityLog)
+    .where(
+      sql`${activityLog.details}->'personaIds' @> ${JSON.stringify([personaId])}::jsonb`
+    )
     .orderBy(desc(activityLog.createdAt))
     .limit(limit)
     .offset(offset);

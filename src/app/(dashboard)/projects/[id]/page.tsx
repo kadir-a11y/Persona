@@ -211,6 +211,16 @@ interface TimelineEvent {
   createdAt: string;
 }
 
+interface ActivityLogEntry {
+  id: string;
+  userId: string | null;
+  entityType: string;
+  entityId: string;
+  action: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
 interface MentionStats {
   dailyTrend: { date: string; count: number }[];
   platformDistribution: { platform: string; count: number }[];
@@ -548,6 +558,11 @@ export default function ProjectDetailPage({
   const [timelineLoaded, setTimelineLoaded] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState(false);
 
+  // Activity logs
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityFilter, setActivityFilter] = useState("all");
+
   // Team dialog
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [teamDialogMode, setTeamDialogMode] = useState<"persona" | "role" | "role_category">("persona");
@@ -701,6 +716,22 @@ export default function ProjectDetailPage({
     }
   }, [id, timelineFilterType]);
 
+  const fetchActivityLogs = useCallback(async () => {
+    setActivityLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activityFilter !== "all") params.set("action", activityFilter);
+      const res = await fetch(`/api/projects/${id}/activity?${params.toString()}`);
+      if (res.ok) {
+        setActivityLogs(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to fetch activity logs:", error);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [id, activityFilter]);
+
   // Always load stats for top bar
   useEffect(() => {
     if (!statsLoaded) fetchStats();
@@ -709,8 +740,11 @@ export default function ProjectDetailPage({
   // Lazy load on tab change
   useEffect(() => {
     if (activeTab === "tasks" && !tasksLoaded) fetchKanbanTasks();
-    if (activeTab === "timeline") fetchTimeline();
-  }, [activeTab, tasksLoaded, fetchKanbanTasks, fetchTimeline]);
+    if (activeTab === "timeline") {
+      fetchTimeline();
+      fetchActivityLogs();
+    }
+  }, [activeTab, tasksLoaded, fetchKanbanTasks, fetchTimeline, fetchActivityLogs]);
 
   // ── Actions ──────────────────────────────────────────────────────────
 
@@ -1191,32 +1225,137 @@ export default function ProjectDetailPage({
         {/* ════════════════════════════════════════════════════════════ */}
         <TabsContent value="timeline" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Zaman Çizelgesi</h2>
+            <h2 className="text-lg font-semibold">Aktivite & Zaman Çizelgesi</h2>
             <Button onClick={() => setShowTimelineDialog(true)} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Not Ekle
             </Button>
           </div>
 
-          {/* Filter */}
-          <Select value={timelineFilterType} onValueChange={setTimelineFilterType}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Olay Tipi" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Olaylar</SelectItem>
-              {Object.entries(TIMELINE_EVENT_LABELS).map(([val, label]) => (
-                <SelectItem key={val} value={val}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3">
+            <Select value={timelineFilterType} onValueChange={setTimelineFilterType}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Olay Tipi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Olaylar</SelectItem>
+                {Object.entries(TIMELINE_EVENT_LABELS).map(([val, label]) => (
+                  <SelectItem key={val} value={val}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={activityFilter} onValueChange={(v) => { setActivityFilter(v); }}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Workspace Eylem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Eylemler</SelectItem>
+                <SelectItem value="generate">AI Üretim</SelectItem>
+                <SelectItem value="approve">Onay</SelectItem>
+                <SelectItem value="bulk_approve">Toplu Onay</SelectItem>
+                <SelectItem value="reject">Red</SelectItem>
+                <SelectItem value="publish">Yayınlama</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Activity Logs Section */}
+          {activityLogs.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Workspace Aktiviteleri
+              </h3>
+              <div className="space-y-2">
+                {activityLogs.map((log) => {
+                  const details = log.details || {};
+                  const personaNames = (details.personaNames as string[]) || [];
+                  const count = (details.count as number) || 0;
+                  const contentType = (details.contentType as string) || "";
+                  const platform = (details.platform as string) || "";
+
+                  const ACTION_LABELS: Record<string, string> = {
+                    generate: "AI Üretim",
+                    approve: "Onay",
+                    bulk_approve: "Toplu Onay",
+                    reject: "Red",
+                    publish: "Yayınlama",
+                  };
+
+                  const ACTION_ICONS: Record<string, string> = {
+                    generate: "text-blue-600 bg-blue-50 border-blue-200",
+                    approve: "text-green-600 bg-green-50 border-green-200",
+                    bulk_approve: "text-green-600 bg-green-50 border-green-200",
+                    reject: "text-red-600 bg-red-50 border-red-200",
+                    publish: "text-purple-600 bg-purple-50 border-purple-200",
+                  };
+
+                  return (
+                    <Card key={log.id}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${ACTION_ICONS[log.action] || "text-gray-600 bg-gray-50 border-gray-200"}`}>
+                            {log.action === "generate" && <Zap className="h-3.5 w-3.5" />}
+                            {(log.action === "approve" || log.action === "bulk_approve") && <CheckCircle className="h-3.5 w-3.5" />}
+                            {log.action === "reject" && <XCircle className="h-3.5 w-3.5" />}
+                            {log.action === "publish" && <Send className="h-3.5 w-3.5" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">
+                                {ACTION_LABELS[log.action] || log.action}
+                              </span>
+                              {count > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {count} persona
+                                </Badge>
+                              )}
+                              {contentType && (
+                                <Badge variant="outline" className="text-xs">
+                                  {contentType}
+                                </Badge>
+                              )}
+                              {platform && (
+                                <Badge variant="outline" className="text-xs">
+                                  {PLATFORM_LABELS[platform] || platform}
+                                </Badge>
+                              )}
+                            </div>
+                            {personaNames.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                {personaNames.slice(0, 5).join(", ")}
+                                {personaNames.length > 5 && ` +${personaNames.length - 5}`}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {formatRelativeTime(log.createdAt)}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline Events Section */}
+          <div className="space-y-2">
+            {activityLogs.length > 0 && (
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mt-4">
+                Proje Olayları
+              </h3>
+            )}
+          </div>
 
           {timelineLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-              <p className="text-sm text-muted-foreground">Zaman çizelgesi yükleniyor...</p>
+              <p className="text-sm text-muted-foreground">Yükleniyor...</p>
             </div>
           ) : timeline.length === 0 ? (
             <Card>

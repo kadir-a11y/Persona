@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { approveResponse } from "@/lib/services/workspace-service";
+import { logWorkspaceAction } from "@/lib/services/activity-log-service";
 
 export async function POST(
   _req: NextRequest,
@@ -11,11 +12,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { rid } = await params;
+  const { id, rid } = await params;
   const response = await approveResponse(rid);
   if (!response) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await logWorkspaceAction(session.user.id, id, "approve", {
+    responseId: rid,
+    personaIds: [response.personaId],
+    contentType: response.contentType || "reply",
+    platform: response.platform,
+  }).catch(() => {});
 
   return NextResponse.json(response);
 }

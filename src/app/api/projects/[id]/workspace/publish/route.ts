@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { publishApprovedResponses } from "@/lib/services/workspace-service";
 import { workspacePublishSchema } from "@/lib/validators/workspace";
+import { logWorkspaceAction } from "@/lib/services/activity-log-service";
 
 export async function POST(
   req: NextRequest,
@@ -12,7 +13,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await params;
+  const { id } = await params;
   const body = await req.json();
   const parsed = workspacePublishSchema.safeParse(body);
   if (!parsed.success) {
@@ -24,6 +25,13 @@ export async function POST(
       parsed.data.sessionId,
       parsed.data.staggerMinutes
     );
+
+    await logWorkspaceAction(session.user.id, id, "publish", {
+      sessionId: parsed.data.sessionId,
+      personaNames: results.map((r) => r.personaName),
+      count: results.length,
+    }).catch(() => {});
+
     return NextResponse.json(results);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
