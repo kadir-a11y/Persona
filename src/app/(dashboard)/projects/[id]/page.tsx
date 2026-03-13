@@ -107,6 +107,7 @@ import {
 } from "recharts";
 import WorkspaceTab from "@/components/workspace/WorkspaceTab";
 import OrganicTab from "@/components/organic/OrganicTab";
+import ContentHistoryTab from "@/components/contents/ContentHistoryTab";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -1070,10 +1071,14 @@ export default function ProjectDetailPage({
 
       {/* ── Tabs (3 ana tab) ─────────────────────────────────────────── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="workspace" className="gap-2">
             <Zap className="h-4 w-4" />
             <span className="hidden sm:inline">Çalışma Alanı</span>
+          </TabsTrigger>
+          <TabsTrigger value="contents" className="gap-2">
+            <Send className="h-4 w-4" />
+            <span className="hidden sm:inline">İçerikler</span>
           </TabsTrigger>
           <TabsTrigger value="tasks" className="gap-2">
             <ListTodo className="h-4 w-4" />
@@ -1093,7 +1098,14 @@ export default function ProjectDetailPage({
         </TabsContent>
 
         {/* ════════════════════════════════════════════════════════════ */}
-        {/* TAB 2: GÖREVLER (Tasks) - Kanban Board                     */}
+        {/* TAB 2: İÇERİKLER (Contents) — Geçmiş Gönderiler           */}
+        {/* ════════════════════════════════════════════════════════════ */}
+        <TabsContent value="contents" className="space-y-4">
+          <ContentHistoryTab projectId={id} />
+        </TabsContent>
+
+        {/* ════════════════════════════════════════════════════════════ */}
+        {/* TAB 3: GÖREVLER (Tasks) - Kanban Board                     */}
         {/* ════════════════════════════════════════════════════════════ */}
         <TabsContent value="tasks" className="space-y-6">
           <div className="flex items-center justify-between">
