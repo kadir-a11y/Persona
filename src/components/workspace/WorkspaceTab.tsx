@@ -164,9 +164,10 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
   const [filterCountry, setFilterCountry] = useState("all");
   const [filterLanguage, setFilterLanguage] = useState("all");
-  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
-  const [filterRoleIds, setFilterRoleIds] = useState<string[]>([]);
+  const [filterTagId, setFilterTagId] = useState("all");
+  const [filterRoleId, setFilterRoleId] = useState("all");
   const [personaSearch, setPersonaSearch] = useState("");
+  const [showPersonaFilters, setShowPersonaFilters] = useState(false);
 
   // Generation state
   const [generating, setGenerating] = useState(false);
@@ -223,8 +224,8 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
       const params = new URLSearchParams();
       if (filterCountry !== "all") params.set("country", filterCountry);
       if (filterLanguage !== "all") params.set("language", filterLanguage);
-      if (filterTagIds.length > 0) params.set("tagIds", filterTagIds.join(","));
-      if (filterRoleIds.length > 0) params.set("roleIds", filterRoleIds.join(","));
+      if (filterTagId !== "all") params.set("tagIds", filterTagId);
+      if (filterRoleId !== "all") params.set("roleIds", filterRoleId);
       params.set("isActive", "true");
 
       const res = await fetch(`/api/personas/filter?${params}`);
@@ -236,7 +237,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
     } finally {
       setPersonasLoading(false);
     }
-  }, [filterCountry, filterLanguage, filterTagIds, filterRoleIds]);
+  }, [filterCountry, filterLanguage, filterTagId, filterRoleId]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -525,27 +526,15 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   const activeFilterCount =
     (filterCountry !== "all" ? 1 : 0) +
     (filterLanguage !== "all" ? 1 : 0) +
-    filterTagIds.length +
-    filterRoleIds.length;
+    (filterTagId !== "all" ? 1 : 0) +
+    (filterRoleId !== "all" ? 1 : 0);
 
   const clearAllFilters = () => {
     setFilterCountry("all");
     setFilterLanguage("all");
-    setFilterTagIds([]);
-    setFilterRoleIds([]);
+    setFilterTagId("all");
+    setFilterRoleId("all");
     setPersonaSearch("");
-  };
-
-  const toggleTagFilter = (tagId: string) => {
-    setFilterTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  };
-
-  const toggleRoleFilter = (roleId: string) => {
-    setFilterRoleIds((prev) =>
-      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
-    );
   };
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -853,15 +842,24 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                     Persona Seçimi ({selectedPersonaIds.size}/{filteredPersonas.length})
                   </CardTitle>
                   <div className="flex items-center gap-1">
-                    {activeFilterCount > 0 && (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAllFilters}>
-                        Temizle
-                      </Button>
-                    )}
+                    <Button
+                      variant={showPersonaFilters ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => setShowPersonaFilters((v) => !v)}
+                    >
+                      <Filter className="h-3 w-3" />
+                      Filtre
+                      {activeFilterCount > 0 && (
+                        <Badge variant="default" className="ml-0.5 h-4 w-4 rounded-full p-0 text-[10px] flex items-center justify-center">
+                          {activeFilterCount}
+                        </Badge>
+                      )}
+                    </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={selectAllPersonas}>
                       {filteredPersonas.length > 0 && filteredPersonas.every((p) => selectedPersonaIds.has(p.id))
-                        ? "Seçimi Kaldır"
-                        : "Tümünü Seç"}
+                        ? "Kaldır"
+                        : "Tümü"}
                     </Button>
                   </div>
                 </div>
@@ -877,66 +875,63 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                   />
                 </div>
 
-                {/* Filters Row 1: Country + Language */}
-                <div className="flex gap-2 mt-2">
-                  <Select value={filterCountry} onValueChange={setFilterCountry}>
-                    <SelectTrigger className="h-7 text-xs flex-1">
-                      <SelectValue placeholder="Ülke" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tüm Ülkeler</SelectItem>
-                      {filterOptions?.countries.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterLanguage} onValueChange={setFilterLanguage}>
-                    <SelectTrigger className="h-7 text-xs flex-1">
-                      <SelectValue placeholder="Dil" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tüm Diller</SelectItem>
-                      {filterOptions?.languages.map((l) => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Filters Row 2: Tags */}
-                {filterOptions?.tags && filterOptions.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {filterOptions.tags.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant={filterTagIds.includes(tag.id) ? "default" : "outline"}
-                        className="text-xs cursor-pointer h-5 px-1.5"
-                        style={
-                          filterTagIds.includes(tag.id)
-                            ? { backgroundColor: tag.color, borderColor: tag.color }
-                            : { borderColor: tag.color, color: tag.color }
-                        }
-                        onClick={() => toggleTagFilter(tag.id)}
-                      >
-                        {tag.name}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {/* Filters Row 3: Roles */}
-                {filterOptions?.roles && filterOptions.roles.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {filterOptions.roles.map((role) => (
-                      <Badge
-                        key={role.id}
-                        variant={filterRoleIds.includes(role.id) ? "default" : "outline"}
-                        className="text-xs cursor-pointer h-5 px-1.5"
-                        onClick={() => toggleRoleFilter(role.id)}
-                      >
-                        {role.name}
-                      </Badge>
-                    ))}
+                {/* Collapsible Filters */}
+                {showPersonaFilters && (
+                  <div className="flex flex-wrap gap-2 mt-2 p-2 rounded-md bg-muted/30 border">
+                    <Select value={filterCountry} onValueChange={setFilterCountry}>
+                      <SelectTrigger className="h-7 text-xs w-[100px]">
+                        <SelectValue placeholder="Ülke" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tüm Ülkeler</SelectItem>
+                        {filterOptions?.countries.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterLanguage} onValueChange={setFilterLanguage}>
+                      <SelectTrigger className="h-7 text-xs w-[90px]">
+                        <SelectValue placeholder="Dil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tüm Diller</SelectItem>
+                        {filterOptions?.languages.map((l) => (
+                          <SelectItem key={l} value={l}>{l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {filterOptions?.tags && filterOptions.tags.length > 0 && (
+                      <Select value={filterTagId} onValueChange={setFilterTagId}>
+                        <SelectTrigger className="h-7 text-xs w-[110px]">
+                          <SelectValue placeholder="Etiket" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tüm Etiketler</SelectItem>
+                          {filterOptions.tags.map((tag) => (
+                            <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {filterOptions?.roles && filterOptions.roles.length > 0 && (
+                      <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                        <SelectTrigger className="h-7 text-xs w-[110px]">
+                          <SelectValue placeholder="Rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tüm Roller</SelectItem>
+                          {filterOptions.roles.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {activeFilterCount > 0 && (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearAllFilters}>
+                        <X className="h-3 w-3 mr-1" />
+                        Temizle
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardHeader>
