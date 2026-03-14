@@ -39,7 +39,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -229,12 +228,6 @@ export default function ContentPage() {
   const [deleteItem, setDeleteItem] = useState<ContentItemRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Bulk selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
-  const [bulkLoading, setBulkLoading] = useState(false);
-
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -397,11 +390,6 @@ export default function ContentPage() {
       if (res.ok) {
         setDeleteOpen(false);
         setDeleteItem(null);
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(deleteItem.contentItem.id);
-          return next;
-        });
         await fetchContent();
       }
     } catch (error) {
@@ -426,88 +414,6 @@ export default function ContentPage() {
       console.error("Failed to update status:", error);
     } finally {
       setActionLoading(null);
-    }
-  }
-
-  // Bulk operations
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleSelectAll() {
-    if (selectedIds.size === filteredItems.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredItems.map((r) => r.contentItem.id)));
-    }
-  }
-
-  async function handleBulkDelete() {
-    setBulkLoading(true);
-    try {
-      const promises = Array.from(selectedIds).map((id) =>
-        fetch(`/api/content/${id}`, { method: "DELETE" })
-      );
-      await Promise.all(promises);
-      setSelectedIds(new Set());
-      setBulkDeleteOpen(false);
-      await fetchContent();
-    } catch (error) {
-      console.error("Failed to bulk delete:", error);
-    } finally {
-      setBulkLoading(false);
-    }
-  }
-
-  async function handleBulkCancel() {
-    setBulkLoading(true);
-    try {
-      const cancellableIds = Array.from(selectedIds).filter((id) => {
-        const row = items.find((r) => r.contentItem.id === id);
-        return row && ["scheduled", "queued", "draft"].includes(row.contentItem.status);
-      });
-      await Promise.all(cancellableIds.map((id) =>
-        fetch(`/api/content/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "cancelled" }),
-        })
-      ));
-      setSelectedIds(new Set());
-      setBulkCancelOpen(false);
-      await fetchContent();
-    } catch (error) {
-      console.error("Failed to bulk cancel:", error);
-    } finally {
-      setBulkLoading(false);
-    }
-  }
-
-  async function handleBulkResume() {
-    setBulkLoading(true);
-    try {
-      const resumableIds = Array.from(selectedIds).filter((id) => {
-        const row = items.find((r) => r.contentItem.id === id);
-        return row && ["cancelled", "failed"].includes(row.contentItem.status);
-      });
-      await Promise.all(resumableIds.map((id) =>
-        fetch(`/api/content/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "draft" }),
-        })
-      ));
-      setSelectedIds(new Set());
-      await fetchContent();
-    } catch (error) {
-      console.error("Failed to bulk resume:", error);
-    } finally {
-      setBulkLoading(false);
     }
   }
 
@@ -689,7 +595,7 @@ export default function ContentPage() {
 
           {/* Filters */}
           <div className="flex items-center gap-3 flex-wrap">
-            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setLoading(true); setSelectedIds(new Set()); }} className="flex-1">
+            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setLoading(true); }} className="flex-1">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <TabsList>
                   {STATUS_TABS.map((tab) => (
@@ -728,28 +634,6 @@ export default function ContentPage() {
                 </div>
               </div>
 
-              {/* Bulk actions bar */}
-              {selectedIds.size > 0 && (
-                <div className="mt-3 flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
-                  <span className="text-sm font-medium">{selectedIds.size} öğe seçili</span>
-                  <Button variant="outline" size="sm" onClick={() => setBulkCancelOpen(true)} disabled={bulkLoading}>
-                    <Ban className="mr-1.5 h-3.5 w-3.5" />
-                    Durdur
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleBulkResume} disabled={bulkLoading}>
-                    <Play className="mr-1.5 h-3.5 w-3.5" />
-                    Devam Ettir
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkLoading}>
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                    Sil
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading}>
-                    Seçimi Kaldır
-                  </Button>
-                </div>
-              )}
-
               {/* All tab contents share the same table */}
               {STATUS_TABS.map((tab) => (
                 <TabsContent key={tab.value} value={tab.value} className="mt-4">
@@ -760,9 +644,6 @@ export default function ContentPage() {
                     onEdit={openEdit}
                     onStatusChange={handleStatusChange}
                     onDetail={openDetail}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    onToggleSelectAll={toggleSelectAll}
                     actionLoading={actionLoading}
                   />
                 </TabsContent>
@@ -793,50 +674,6 @@ export default function ContentPage() {
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   {deleteLoading ? "Siliniyor..." : "Sil"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* Bulk Delete Confirmation */}
-          <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Toplu Silme</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {selectedIds.size} içeriği silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={bulkLoading}>Vazgeç</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleBulkDelete}
-                  disabled={bulkLoading}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {bulkLoading ? "Siliniyor..." : `${selectedIds.size} İçeriği Sil`}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* Bulk Cancel Confirmation */}
-          <AlertDialog open={bulkCancelOpen} onOpenChange={setBulkCancelOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Toplu Durdurma</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Seçili {selectedIds.size} içerikten uygun olanları durdurmak istediğinize emin misiniz?
-                  Sadece taslak, zamanlanmış ve kuyrukta olan içerikler durdurulur.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={bulkLoading}>Vazgeç</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleBulkCancel}
-                  disabled={bulkLoading}
-                >
-                  {bulkLoading ? "Durduruluyor..." : "Durdur"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -1071,9 +908,6 @@ function ContentTable({
   onEdit,
   onStatusChange,
   onDetail,
-  selectedIds,
-  onToggleSelect,
-  onToggleSelectAll,
   actionLoading,
 }: {
   items: ContentItemRow[];
@@ -1082,9 +916,6 @@ function ContentTable({
   onEdit: (item: ContentItemRow) => void;
   onStatusChange: (item: ContentItemRow, status: string) => void;
   onDetail: (item: ContentItemRow) => void;
-  selectedIds: Set<string>;
-  onToggleSelect: (id: string) => void;
-  onToggleSelectAll: () => void;
   actionLoading: string | null;
 }) {
   if (items.length === 0) {
@@ -1099,19 +930,11 @@ function ContentTable({
     );
   }
 
-  const allSelected = selectedIds.size === items.length && items.length > 0;
-
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[40px]">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={onToggleSelectAll}
-              />
-            </TableHead>
             <TableHead>Persona</TableHead>
             <TableHead>Platform</TableHead>
             <TableHead className="max-w-[300px]">İçerik</TableHead>
@@ -1124,7 +947,6 @@ function ContentTable({
         <TableBody>
           {items.map((row) => {
             const ci = row.contentItem;
-            const isSelected = selectedIds.has(ci.id);
             const canEdit = ["draft", "scheduled"].includes(ci.status);
             const canStop = ["scheduled", "queued"].includes(ci.status);
             const canResume = ["cancelled", "failed"].includes(ci.status);
@@ -1133,15 +955,9 @@ function ContentTable({
             return (
               <TableRow
                 key={ci.id}
-                className={`cursor-pointer ${isSelected ? "bg-muted/50" : ""}`}
+                className="cursor-pointer"
                 onClick={() => onDetail(row)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => onToggleSelect(ci.id)}
-                  />
-                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Avatar className="h-7 w-7">
