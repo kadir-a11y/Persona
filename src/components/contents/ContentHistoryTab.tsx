@@ -480,10 +480,10 @@ export default function ContentHistoryTab({ projectId }: { projectId: string }) 
             const typeCfg = CONTENT_TYPE_CONFIG[item.contentType || "post"] || CONTENT_TYPE_CONFIG.post;
             const StatusIcon = statusCfg.icon;
             const TypeIcon = typeCfg.icon;
-            const canEdit = ["draft", "scheduled"].includes(item.status || "");
-            const canStop = ["scheduled", "queued"].includes(item.status || "");
+            const canEdit = ["draft", "scheduled", "cancelled", "failed"].includes(item.status || "");
+            const canStop = ["draft", "scheduled", "queued"].includes(item.status || "");
             const canResume = ["cancelled", "failed"].includes(item.status || "");
-            const canBackToDraft = item.status === "scheduled";
+            const canBackToDraft = ["scheduled", "queued"].includes(item.status || "");
 
             return (
               <Card
@@ -719,17 +719,17 @@ export default function ContentHistoryTab({ projectId }: { projectId: string }) 
           <DialogFooter>
             {detailItem && (
               <div className="flex gap-2 mr-auto">
-                {["draft", "scheduled"].includes(detailItem.status || "") && (
+                {["draft", "scheduled", "cancelled", "failed"].includes(detailItem.status || "") && (
                   <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); openEdit(detailItem); }}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
                   </Button>
                 )}
-                {["scheduled", "queued"].includes(detailItem.status || "") && (
+                {["draft", "scheduled", "queued"].includes(detailItem.status || "") && (
                   <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); handleStatusChange(detailItem, "cancelled"); }}>
                     <Ban className="mr-1.5 h-3.5 w-3.5" /> Durdur
                   </Button>
                 )}
-                {detailItem.status === "scheduled" && (
+                {["scheduled", "queued"].includes(detailItem.status || "") && (
                   <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); handleStatusChange(detailItem, "draft"); }}>
                     <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Taslağa Çevir
                   </Button>
@@ -739,6 +739,9 @@ export default function ContentHistoryTab({ projectId }: { projectId: string }) 
                     <Play className="mr-1.5 h-3.5 w-3.5" /> Devam Ettir
                   </Button>
                 )}
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => { setDetailOpen(false); setDeleteItem(detailItem); setDeleteOpen(true); }}>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Sil
+                </Button>
               </div>
             )}
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Kapat</Button>

@@ -859,19 +859,19 @@ export default function ContentPage() {
               <DialogFooter>
                 {detailItem && (
                   <div className="flex gap-2 mr-auto">
-                    {["draft", "scheduled"].includes(detailItem.contentItem.status) && (
+                    {["draft", "scheduled", "cancelled", "failed"].includes(detailItem.contentItem.status) && (
                       <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); openEdit(detailItem); }}>
                         <Pencil className="mr-1.5 h-3.5 w-3.5" />
                         Düzenle
                       </Button>
                     )}
-                    {["scheduled", "queued"].includes(detailItem.contentItem.status) && (
+                    {["draft", "scheduled", "queued"].includes(detailItem.contentItem.status) && (
                       <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); handleStatusChange(detailItem, "cancelled"); }}>
                         <Ban className="mr-1.5 h-3.5 w-3.5" />
                         Durdur
                       </Button>
                     )}
-                    {detailItem.contentItem.status === "scheduled" && (
+                    {["scheduled", "queued"].includes(detailItem.contentItem.status) && (
                       <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); handleStatusChange(detailItem, "draft"); }}>
                         <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                         Taslağa Çevir
@@ -883,6 +883,10 @@ export default function ContentPage() {
                         Devam Ettir
                       </Button>
                     )}
+                    <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => { setDetailOpen(false); openDelete(detailItem); }}>
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Sil
+                    </Button>
                   </div>
                 )}
                 <Button variant="outline" onClick={() => setDetailOpen(false)}>Kapat</Button>
@@ -947,10 +951,10 @@ function ContentTable({
         <TableBody>
           {items.map((row) => {
             const ci = row.contentItem;
-            const canEdit = ["draft", "scheduled"].includes(ci.status);
-            const canStop = ["scheduled", "queued"].includes(ci.status);
+            const canEdit = ["draft", "scheduled", "cancelled", "failed"].includes(ci.status);
+            const canStop = ["draft", "scheduled", "queued"].includes(ci.status);
             const canResume = ["cancelled", "failed"].includes(ci.status);
-            const canBackToDraft = ci.status === "scheduled";
+            const canBackToDraft = ["scheduled", "queued"].includes(ci.status);
 
             return (
               <TableRow
