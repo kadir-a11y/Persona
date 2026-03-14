@@ -27,6 +27,7 @@ import {
   Bookmark,
   Trash2,
   Settings2,
+  Star,
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,8 @@ interface Persona {
   maxPostsPerDay: number | null;
   isActive: boolean | null;
   isVerified: boolean | null;
+  isFavorite: boolean | null;
+  influenceScore: number | null;
   createdAt: string | null;
   updatedAt: string | null;
   tags: Tag[];
@@ -267,14 +270,29 @@ const defaultFormData: CreateFormData = {
 function PersonaRow({
   persona,
   visibleColumns = ["persona", "gender", "birthDate", "language", "country", "status", "tags"],
+  onToggleFavorite,
 }: {
   persona: Persona;
   visibleColumns?: string[];
+  onToggleFavorite?: (id: string) => void;
 }) {
   return (
     <TableRow
       className="cursor-pointer hover:bg-muted/50 relative"
     >
+      {/* Favorite star */}
+      <TableCell className="w-[36px] px-2">
+        <button
+          className="relative z-20 p-0.5 rounded hover:bg-muted"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFavorite?.(persona.id);
+          }}
+        >
+          <Star className={`h-4 w-4 ${persona.isFavorite ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30 hover:text-yellow-400"}`} />
+        </button>
+      </TableCell>
       <TableCell>
         <Link href={`/personas/${persona.id}`} className="absolute inset-0 z-10" />
         <div className="flex items-center gap-3">
@@ -402,6 +420,28 @@ function PersonaRow({
           <span className="text-xs text-muted-foreground">
             {persona.createdAt ? new Date(persona.createdAt).toLocaleDateString("tr-TR") : "-"}
           </span>
+        </TableCell>
+      )}
+      {visibleColumns.includes("influenceScore") && (
+        <TableCell>
+          {persona.influenceScore != null && persona.influenceScore > 0 ? (
+            <Badge
+              variant="outline"
+              className={`text-xs px-1.5 py-0 ${
+                persona.influenceScore >= 81 ? "border-purple-500 text-purple-600 bg-purple-50" :
+                persona.influenceScore >= 51 ? "border-orange-500 text-orange-600 bg-orange-50" :
+                persona.influenceScore >= 21 ? "border-blue-500 text-blue-600 bg-blue-50" :
+                "border-muted-foreground text-muted-foreground"
+              }`}
+            >
+              {persona.influenceScore >= 81 ? "Elit" :
+               persona.influenceScore >= 51 ? "Yüksek" :
+               persona.influenceScore >= 21 ? "Orta" : "Düşük"}
+              {" "}{persona.influenceScore}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
         </TableCell>
       )}
     </TableRow>
@@ -1143,6 +1183,8 @@ function PersonasPage() {
   const filterRole = searchParams.get("role") || "all";
   const filterAccountParam = searchParams.get("account") || "all";
   const filterAccounts = filterAccountParam === "all" ? [] : filterAccountParam.split(",");
+  const filterFavorite = searchParams.get("favorite") || "all";
+  const filterMinInfluence = searchParams.get("influence") || "all";
   const sortBy = searchParams.get("sort") || "newest";
   const viewMode = (searchParams.get("view") || "table") as "table" | "grid";
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
@@ -1195,11 +1237,13 @@ function PersonasPage() {
     if (filterLanguage !== "all") session.lang = filterLanguage;
     if (filterTag !== "all") session.tag = filterTag;
     if (filterRole !== "all") session.role = filterRole;
+    if (filterFavorite !== "all") session.favorite = filterFavorite;
+    if (filterMinInfluence !== "all") session.influence = filterMinInfluence;
     if (sortBy !== "newest") session.sort = sortBy;
     if (viewMode !== "table") session.view = viewMode;
     if (pageSize !== 10) session.size = String(pageSize);
     setPref("lastSession", session);
-  }, [search, filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole, sortBy, viewMode, pageSize, prefsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole, filterFavorite, filterMinInfluence, sortBy, viewMode, pageSize, prefsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // #16: Saved filters helpers
   const savedFilters = getAllPrefs("savedFilter_");
@@ -1213,6 +1257,8 @@ function PersonasPage() {
     if (filterLanguage !== "all") filterState.lang = filterLanguage;
     if (filterTag !== "all") filterState.tag = filterTag;
     if (filterRole !== "all") filterState.role = filterRole;
+    if (filterFavorite !== "all") filterState.favorite = filterFavorite;
+    if (filterMinInfluence !== "all") filterState.influence = filterMinInfluence;
     if (sortBy !== "newest") filterState.sort = sortBy;
     setPref(`savedFilter_${saveFilterName.trim()}`, filterState);
     setSaveFilterName("");
@@ -1237,6 +1283,22 @@ function PersonasPage() {
       : [...visibleColumns, col];
     setPref("visibleColumns", next);
   };
+
+  // Toggle favorite
+  const toggleFavorite = useCallback(async (personaId: string) => {
+    // Optimistic update
+    setPersonas((prev) =>
+      prev.map((p) => p.id === personaId ? { ...p, isFavorite: !p.isFavorite } : p)
+    );
+    try {
+      await fetch(`/api/personas/${personaId}/favorite`, { method: "PATCH" });
+    } catch {
+      // Revert on error
+      setPersonas((prev) =>
+        prev.map((p) => p.id === personaId ? { ...p, isFavorite: !p.isFavorite } : p)
+      );
+    }
+  }, []);
 
   // Debounce search input to URL
   useEffect(() => {
@@ -1269,6 +1331,8 @@ function PersonasPage() {
   const setFilterLanguage = (v: string) => updateParams({ lang: v, page: "1" });
   const setFilterTag = (v: string) => updateParams({ tag: v, page: "1" });
   const setFilterRole = (v: string) => updateParams({ role: v, page: "1" });
+  const setFilterFavoriteParam = (v: string) => updateParams({ favorite: v, page: "1" });
+  const setFilterMinInfluenceParam = (v: string) => updateParams({ influence: v, page: "1" });
   const toggleFilterAccount = (v: string) => {
     const next = filterAccounts.includes(v)
       ? filterAccounts.filter((a) => a !== v)
@@ -1305,7 +1369,7 @@ function PersonasPage() {
   const uniqueTags = [...new Map(personas.flatMap((p) => p.tags).map((t) => [t.id, t])).values()].sort((a, b) => a.name.localeCompare(b.name, "tr"));
   const uniqueRoles = [...new Map(personas.flatMap((p) => p.roles || []).map((r) => [r.id, r])).values()].sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
-  const activeFilterCount = [filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole].filter((f) => f !== "all").length + filterAccounts.length;
+  const activeFilterCount = [filterGender, filterStatus, filterCountry, filterLanguage, filterTag, filterRole, filterFavorite, filterMinInfluence].filter((f) => f !== "all").length + filterAccounts.length;
 
   // Filters now use URL search params - page reset happens in updateParams
 
@@ -1340,6 +1404,11 @@ function PersonasPage() {
       if (filterTag !== "all" && !p.tags.some((t) => t.id === filterTag)) return false;
       // Role filter
       if (filterRole !== "all" && !(p.roles || []).some((r) => r.id === filterRole)) return false;
+      // Favorite filter
+      if (filterFavorite === "yes" && !p.isFavorite) return false;
+      if (filterFavorite === "no" && p.isFavorite) return false;
+      // Influence score filter
+      if (filterMinInfluence !== "all" && (p.influenceScore || 0) < parseInt(filterMinInfluence)) return false;
       // Account filters (multi-select)
       for (const af of filterAccounts) {
         if (af === "has_email" && p.emailAccountCount === 0) return false;
@@ -1475,6 +1544,7 @@ function PersonasPage() {
                 { key: "maxPostsPerDay", label: "Günlük Post Limiti" },
                 { key: "isVerified", label: "Doğrulanmış" },
                 { key: "createdAt", label: "Oluşturulma Tarihi" },
+                { key: "influenceScore", label: "Etki Derecesi" },
               ].map((col) => (
                 <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded cursor-pointer">
                   <Checkbox
@@ -1675,6 +1745,30 @@ function PersonasPage() {
               </PopoverContent>
             </Popover>
 
+            <Select value={filterFavorite} onValueChange={setFilterFavoriteParam}>
+              <SelectTrigger className="w-[130px] h-8 text-sm">
+                <Star className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Favori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Profiller</SelectItem>
+                <SelectItem value="yes">Favoriler</SelectItem>
+                <SelectItem value="no">Favori Değil</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMinInfluence} onValueChange={setFilterMinInfluenceParam}>
+              <SelectTrigger className="w-[140px] h-8 text-sm">
+                <SelectValue placeholder="Etki Derecesi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Dereceler</SelectItem>
+                <SelectItem value="21">Orta+ (21+)</SelectItem>
+                <SelectItem value="51">Yüksek+ (51+)</SelectItem>
+                <SelectItem value="81">Elit (81+)</SelectItem>
+              </SelectContent>
+            </Select>
+
             {activeFilterCount > 0 && (
               <Button
                 variant="ghost"
@@ -1685,6 +1779,8 @@ function PersonasPage() {
                   setFilterLanguage("all");
                   setFilterTag("all");
                   setFilterRole("all");
+                  setFilterFavoriteParam("all");
+                  setFilterMinInfluenceParam("all");
                   clearFilterAccounts();
                 }}
               >
@@ -1786,6 +1882,7 @@ function PersonasPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[36px] px-2"><Star className="h-3.5 w-3.5 text-muted-foreground" /></TableHead>
                 <TableHead>Persona</TableHead>
                 {visibleColumns.includes("gender") && <TableHead className="w-[70px]">Cinsiyet</TableHead>}
                 {visibleColumns.includes("birthDate") && <TableHead className="w-[100px]">Doğum Tarihi</TableHead>}
@@ -1799,6 +1896,7 @@ function PersonasPage() {
                 {visibleColumns.includes("maxPostsPerDay") && <TableHead className="w-[80px]">Post/Gün</TableHead>}
                 {visibleColumns.includes("isVerified") && <TableHead className="w-[80px]">Doğrulanmış</TableHead>}
                 {visibleColumns.includes("createdAt") && <TableHead className="w-[120px]">Oluşturulma</TableHead>}
+                {visibleColumns.includes("influenceScore") && <TableHead className="w-[110px]">Etki Derecesi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1807,6 +1905,7 @@ function PersonasPage() {
                   key={persona.id}
                   persona={persona}
                   visibleColumns={visibleColumns}
+                  onToggleFavorite={toggleFavorite}
                 />
               ))}
             </TableBody>

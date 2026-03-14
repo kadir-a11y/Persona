@@ -20,6 +20,7 @@ export const personaCreateSchema = z.object({
   maxPostsPerDay: z.number().min(1).max(100).default(5),
   isActive: z.boolean().default(true),
   isVerified: z.boolean().default(false),
+  isFavorite: z.boolean().default(false),
 });
 
 export const personaUpdateSchema = personaCreateSchema.partial();

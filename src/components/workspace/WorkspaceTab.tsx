@@ -38,6 +38,7 @@ import {
   Sparkles,
   Search,
   Plus,
+  Star,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -62,6 +63,8 @@ interface Persona {
   country: string | null;
   gender: string | null;
   isActive: boolean;
+  isFavorite: boolean | null;
+  influenceScore: number | null;
   tags: { id: string; name: string; color: string }[];
   roles: { id: string; name: string }[];
 }
@@ -184,6 +187,8 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
   const [filterLanguage, setFilterLanguage] = useState("all");
   const [filterTagId, setFilterTagId] = useState("all");
   const [filterRoleId, setFilterRoleId] = useState("all");
+  const [filterMinInfluence, setFilterMinInfluence] = useState("all");
+  const [filterFavorite, setFilterFavorite] = useState(false);
   const [personaSearch, setPersonaSearch] = useState("");
   const [showPersonaFilters, setShowPersonaFilters] = useState(false);
 
@@ -244,6 +249,8 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
       if (filterLanguage !== "all") params.set("language", filterLanguage);
       if (filterTagId !== "all") params.set("tagIds", filterTagId);
       if (filterRoleId !== "all") params.set("roleIds", filterRoleId);
+      if (filterMinInfluence !== "all") params.set("minInfluenceScore", filterMinInfluence);
+      if (filterFavorite) params.set("isFavorite", "true");
       params.set("isActive", "true");
 
       const res = await fetch(`/api/personas/filter?${params}`);
@@ -255,7 +262,7 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
     } finally {
       setPersonasLoading(false);
     }
-  }, [filterCountry, filterLanguage, filterTagId, filterRoleId]);
+  }, [filterCountry, filterLanguage, filterTagId, filterRoleId, filterMinInfluence, filterFavorite]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -546,13 +553,17 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
     (filterCountry !== "all" ? 1 : 0) +
     (filterLanguage !== "all" ? 1 : 0) +
     (filterTagId !== "all" ? 1 : 0) +
-    (filterRoleId !== "all" ? 1 : 0);
+    (filterRoleId !== "all" ? 1 : 0) +
+    (filterMinInfluence !== "all" ? 1 : 0) +
+    (filterFavorite ? 1 : 0);
 
   const clearAllFilters = () => {
     setFilterCountry("all");
     setFilterLanguage("all");
     setFilterTagId("all");
     setFilterRoleId("all");
+    setFilterMinInfluence("all");
+    setFilterFavorite(false);
     setPersonaSearch("");
   };
 
@@ -961,6 +972,26 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                         </SelectContent>
                       </Select>
                     )}
+                    <Select value={filterMinInfluence} onValueChange={setFilterMinInfluence}>
+                      <SelectTrigger className="h-7 text-xs w-[120px]">
+                        <SelectValue placeholder="Etki Derecesi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tüm Dereceler</SelectItem>
+                        <SelectItem value="21">Orta+ (21+)</SelectItem>
+                        <SelectItem value="51">Yüksek+ (51+)</SelectItem>
+                        <SelectItem value="81">Elit (81+)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant={filterFavorite ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => setFilterFavorite(!filterFavorite)}
+                    >
+                      <Star className={`h-3 w-3 ${filterFavorite ? "fill-current" : ""}`} />
+                      Favoriler
+                    </Button>
                     {activeFilterCount > 0 && (
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearAllFilters}>
                         <X className="h-3 w-3 mr-1" />
@@ -1005,7 +1036,23 @@ export default function WorkspaceTab({ projectId }: { projectId: string }) {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{persona.name}</p>
+                        <p className="text-sm font-medium truncate flex items-center gap-1">
+                          {persona.isFavorite && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                          {persona.name}
+                          {persona.influenceScore != null && persona.influenceScore > 0 && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] px-1 py-0 ml-1 shrink-0 ${
+                                persona.influenceScore >= 81 ? "border-purple-500 text-purple-500" :
+                                persona.influenceScore >= 51 ? "border-orange-500 text-orange-500" :
+                                persona.influenceScore >= 21 ? "border-blue-500 text-blue-500" :
+                                "border-muted-foreground text-muted-foreground"
+                              }`}
+                            >
+                              {persona.influenceScore}
+                            </Badge>
+                          )}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {persona.language} {persona.country && `· ${persona.country}`}
                         </p>

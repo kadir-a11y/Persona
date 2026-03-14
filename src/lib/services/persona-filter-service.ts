@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { personas, personaTags, tags, personaRoles, roles, socialAccounts } from "@/lib/db/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql, gte } from "drizzle-orm";
 
 interface PersonaFilterCriteria {
   country?: string;
@@ -12,6 +12,8 @@ interface PersonaFilterCriteria {
   isActive?: boolean;
   hasAccountOnPlatform?: string;
   personaIds?: string[];
+  minInfluenceScore?: number;
+  isFavorite?: boolean;
 }
 
 export async function filterPersonas(
@@ -28,6 +30,8 @@ export async function filterPersonas(
   if (criteria.language) conditions.push(eq(personas.language, criteria.language));
   if (criteria.gender) conditions.push(eq(personas.gender, criteria.gender));
   if (criteria.isActive !== undefined) conditions.push(eq(personas.isActive, criteria.isActive));
+  if (criteria.minInfluenceScore !== undefined) conditions.push(gte(personas.influenceScore, criteria.minInfluenceScore));
+  if (criteria.isFavorite !== undefined) conditions.push(eq(personas.isFavorite, criteria.isFavorite));
 
   let result = await db
     .select()

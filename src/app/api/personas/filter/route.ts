@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
     isActive: searchParams.get("isActive") === "true" ? true : searchParams.get("isActive") === "false" ? false : undefined,
     hasAccountOnPlatform: searchParams.get("hasAccountOnPlatform") || undefined,
     personaIds: searchParams.get("personaIds")?.split(",").filter(Boolean) || undefined,
+    minInfluenceScore: searchParams.get("minInfluenceScore") ? parseInt(searchParams.get("minInfluenceScore")!) : undefined,
+    isFavorite: searchParams.get("isFavorite") === "true" ? true : undefined,
   };
 
   const personas = await filterPersonas(session.user.id, criteria, isAdmin);

@@ -16,6 +16,8 @@ import {
   Radar,
   PanelLeftClose,
   PanelLeftOpen,
+  KeyRound,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,7 +28,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { signOut } from "next-auth/react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { BugReporter } from "@/components/bug-reporter";
 
@@ -50,6 +60,15 @@ function Sidebar({
   onToggle?: () => void;
 }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Kullanıcı";
+  const userEmail = session?.user?.email || "";
+  const initials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -117,56 +136,75 @@ function Sidebar({
           </nav>
         </ScrollArea>
         <Separator />
-        <div className={cn("p-3", collapsed && "p-2")}>
-          {collapsed ? (
+        <div className={cn("p-2 flex items-center", collapsed ? "flex-col gap-1" : "gap-2 px-3")}>
+          {/* User profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={cn(
+                "flex items-center gap-2 rounded-md p-1.5 text-sm transition-colors hover:bg-muted w-full",
+                collapsed ? "justify-center" : ""
+              )}>
+                <Avatar className="h-7 w-7 shrink-0">
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                {!collapsed && (
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-xs font-medium truncate">{userName}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{userEmail}</p>
+                  </div>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side={collapsed ? "right" : "top"} align="start" className="w-48">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">{userEmail}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  Profil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings?tab=security" className="cursor-pointer">
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Şifre Değiştir
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive cursor-pointer"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Çıkış Yap
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Collapse toggle — only in collapsed mode */}
+          {collapsed && onToggle && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-full text-muted-foreground"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="h-7 w-7 text-muted-foreground"
+                  onClick={onToggle}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <PanelLeftOpen className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                Çıkış Yap
+                Menüyü Genişlet
               </TooltipContent>
             </Tooltip>
-          ) : (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-muted-foreground"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
-              <LogOut className="h-4 w-4" />
-              Çıkış Yap
-            </Button>
           )}
         </div>
-        {collapsed && onToggle && (
-          <>
-            <Separator />
-            <div className="p-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-full text-muted-foreground"
-                    onClick={onToggle}
-                  >
-                    <PanelLeftOpen className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  Menüyü Genişlet
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </>
-        )}
       </div>
     </TooltipProvider>
   );

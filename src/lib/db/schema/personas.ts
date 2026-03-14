@@ -23,6 +23,8 @@ export const personas = pgTable("personas", {
   maxPostsPerDay: integer("max_posts_per_day").default(5),
   isActive: boolean("is_active").default(true),
   isVerified: boolean("is_verified").default(false),
+  isFavorite: boolean("is_favorite").default(false),
+  influenceScore: integer("influence_score").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
