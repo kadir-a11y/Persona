@@ -424,24 +424,20 @@ function PersonaRow({
       )}
       {visibleColumns.includes("influenceScore") && (
         <TableCell>
-          {persona.influenceScore != null && persona.influenceScore > 0 ? (
-            <Badge
+          <Badge
               variant="outline"
               className={`text-xs px-1.5 py-0 ${
-                persona.influenceScore >= 81 ? "border-purple-500 text-purple-600 bg-purple-50" :
-                persona.influenceScore >= 51 ? "border-orange-500 text-orange-600 bg-orange-50" :
-                persona.influenceScore >= 21 ? "border-blue-500 text-blue-600 bg-blue-50" :
+                (persona.influenceScore ?? 0) >= 81 ? "border-purple-500 text-purple-600 bg-purple-50" :
+                (persona.influenceScore ?? 0) >= 51 ? "border-orange-500 text-orange-600 bg-orange-50" :
+                (persona.influenceScore ?? 0) >= 21 ? "border-blue-500 text-blue-600 bg-blue-50" :
                 "border-muted-foreground text-muted-foreground"
               }`}
             >
-              {persona.influenceScore >= 81 ? "Elit" :
-               persona.influenceScore >= 51 ? "Yüksek" :
-               persona.influenceScore >= 21 ? "Orta" : "Düşük"}
-              {" "}{persona.influenceScore}
+              {(persona.influenceScore ?? 0) >= 81 ? "Elit" :
+               (persona.influenceScore ?? 0) >= 51 ? "Yüksek" :
+               (persona.influenceScore ?? 0) >= 21 ? "Orta" : "Düşük"}
+              {" "}{persona.influenceScore ?? 0}
             </Badge>
-          ) : (
-            <span className="text-xs text-muted-foreground">-</span>
-          )}
         </TableCell>
       )}
     </TableRow>

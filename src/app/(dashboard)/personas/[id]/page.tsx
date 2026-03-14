@@ -3355,22 +3355,20 @@ export default function PersonaDetailPage() {
               >
                 <Star className={`h-5 w-5 ${persona.isFavorite ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/40 hover:text-yellow-400"}`} />
               </button>
-              {persona.influenceScore != null && persona.influenceScore > 0 && (
-                <Badge
-                  variant="outline"
-                  className={`text-xs ${
-                    persona.influenceScore >= 81 ? "border-purple-500 text-purple-600 bg-purple-50" :
-                    persona.influenceScore >= 51 ? "border-orange-500 text-orange-600 bg-orange-50" :
-                    persona.influenceScore >= 21 ? "border-blue-500 text-blue-600 bg-blue-50" :
-                    "border-muted-foreground text-muted-foreground"
-                  }`}
-                >
-                  {persona.influenceScore >= 81 ? "Elit" :
-                   persona.influenceScore >= 51 ? "Yüksek" :
-                   persona.influenceScore >= 21 ? "Orta" : "Düşük"}
-                  {" "}{persona.influenceScore}
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  (persona.influenceScore ?? 0) >= 81 ? "border-purple-500 text-purple-600 bg-purple-50" :
+                  (persona.influenceScore ?? 0) >= 51 ? "border-orange-500 text-orange-600 bg-orange-50" :
+                  (persona.influenceScore ?? 0) >= 21 ? "border-blue-500 text-blue-600 bg-blue-50" :
+                  "border-muted-foreground text-muted-foreground"
+                }`}
+              >
+                {(persona.influenceScore ?? 0) >= 81 ? "Elit" :
+                 (persona.influenceScore ?? 0) >= 51 ? "Yuksek" :
+                 (persona.influenceScore ?? 0) >= 21 ? "Orta" : "Dusuk"}
+                {" "}{persona.influenceScore ?? 0}
                 </Badge>
-              )}
             </div>
             <p className="text-muted-foreground">@{persona.name}</p>
             {persona.bio && (
