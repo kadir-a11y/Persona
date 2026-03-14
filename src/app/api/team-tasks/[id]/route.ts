@@ -12,6 +12,7 @@ const updateSchema = z.object({
   priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
   assignedTo: z.string().uuid().nullable().optional(),
   dueDate: z.string().datetime().nullable().optional(),
+  resultNote: z.string().nullable().optional(),
 });
 
 export async function PATCH(

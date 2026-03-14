@@ -68,6 +68,7 @@ interface TeamTask {
     assignedTo: string | null;
     createdBy: string | null;
     dueDate: string | null;
+    resultNote: string | null;
     completedAt: string | null;
     sortOrder: number;
     createdAt: string;
@@ -123,7 +124,14 @@ export default function TasksPage() {
   const [editPriority, setEditPriority] = useState("normal");
   const [editAssignee, setEditAssignee] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editResultNote, setEditResultNote] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+
+  // Complete confirmation
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeTask, setCompleteTask] = useState<TeamTask | null>(null);
+  const [completeNote, setCompleteNote] = useState("");
+  const [completeLoading, setCompleteLoading] = useState(false);
 
   // Delete
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -199,6 +207,7 @@ export default function TasksPage() {
     setEditPriority(t.task.priority);
     setEditAssignee(t.task.assignedTo || "");
     setEditDueDate(t.task.dueDate ? new Date(t.task.dueDate).toISOString().slice(0, 16) : "");
+    setEditResultNote(t.task.resultNote || "");
     setEditOpen(true);
   }
 
@@ -211,6 +220,7 @@ export default function TasksPage() {
         description: editDesc.trim() || undefined,
         priority: editPriority,
         assignedTo: editAssignee || null,
+        resultNote: editResultNote.trim() || null,
       };
       if (editDueDate) body.dueDate = new Date(editDueDate).toISOString();
       else body.dueDate = null;
@@ -227,16 +237,45 @@ export default function TasksPage() {
     }
   }
 
-  async function handleStatusChange(taskId: string, status: string) {
+  async function handleStatusChange(taskId: string, status: string, extra?: Record<string, unknown>) {
     try {
       await fetch(`/api/team-tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...extra }),
       });
       await fetchTasks();
     } catch (err) {
       console.error("Status change error:", err);
+    }
+  }
+
+  function openCompleteDialog(t: TeamTask) {
+    setCompleteTask(t);
+    setCompleteNote(t.task.resultNote || "");
+    setCompleteOpen(true);
+  }
+
+  async function handleComplete() {
+    if (!completeTask) return;
+    setCompleteLoading(true);
+    try {
+      await fetch(`/api/team-tasks/${completeTask.task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "completed",
+          resultNote: completeNote.trim() || null,
+        }),
+      });
+      setCompleteOpen(false);
+      setCompleteTask(null);
+      setCompleteNote("");
+      await fetchTasks();
+    } catch (err) {
+      console.error("Complete error:", err);
+    } finally {
+      setCompleteLoading(false);
     }
   }
 
@@ -399,9 +438,13 @@ export default function TasksPage() {
                     <div className="mt-0.5">
                       <Checkbox
                         checked={isCompleted}
-                        onCheckedChange={() =>
-                          handleStatusChange(t.task.id, isCompleted ? "pending" : "completed")
-                        }
+                        onCheckedChange={() => {
+                          if (isCompleted) {
+                            handleStatusChange(t.task.id, "pending");
+                          } else {
+                            openCompleteDialog(t);
+                          }
+                        }}
                       />
                     </div>
 
@@ -420,6 +463,12 @@ export default function TasksPage() {
 
                       {t.task.description && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.task.description}</p>
+                      )}
+
+                      {t.task.resultNote && (
+                        <div className="mt-1.5 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5">
+                          <p className="text-xs text-green-800"><span className="font-medium">Sonuç:</span> {t.task.resultNote}</p>
+                        </div>
                       )}
 
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
@@ -465,8 +514,8 @@ export default function TasksPage() {
                             <Play className="mr-2 h-4 w-4" /> Başla
                           </DropdownMenuItem>
                         )}
-                        {isInProgress && (
-                          <DropdownMenuItem onClick={() => handleStatusChange(t.task.id, "completed")}>
+                        {(isPending || isInProgress) && (
+                          <DropdownMenuItem onClick={() => openCompleteDialog(t)}>
                             <CheckCircle2 className="mr-2 h-4 w-4" /> Tamamla
                           </DropdownMenuItem>
                         )}
@@ -590,11 +639,52 @@ export default function TasksPage() {
               <Label>Son Tarih</Label>
               <Input type="datetime-local" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Sonuç Notu</Label>
+              <Textarea value={editResultNote} onChange={(e) => setEditResultNote(e.target.value)} rows={2} placeholder="Görev sonucu hakkında not..." />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditOpen(false); setEditTask(null); }}>İptal</Button>
             <Button onClick={handleEdit} disabled={editLoading || !editTitle.trim()}>
               {editLoading ? "Kaydediliyor..." : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Confirmation */}
+      <Dialog open={completeOpen} onOpenChange={(o) => { setCompleteOpen(o); if (!o) { setCompleteTask(null); setCompleteNote(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Görevi Tamamla</DialogTitle>
+          </DialogHeader>
+          {completeTask && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-md border bg-muted/50 p-3">
+                <p className="font-medium text-sm">{completeTask.task.title}</p>
+                {completeTask.assignedName && (
+                  <p className="text-xs text-muted-foreground mt-1">{completeTask.assignedName}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Sonuç Notu (opsiyonel)</Label>
+                <Textarea
+                  value={completeNote}
+                  onChange={(e) => setCompleteNote(e.target.value)}
+                  rows={3}
+                  placeholder="Görev sonucu hakkında not ekleyin..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCompleteOpen(false); setCompleteTask(null); setCompleteNote(""); }}>
+              Vazgeç
+            </Button>
+            <Button onClick={handleComplete} disabled={completeLoading} className="bg-green-600 hover:bg-green-700 text-white">
+              {completeLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Tamamla
             </Button>
           </DialogFooter>
         </DialogContent>

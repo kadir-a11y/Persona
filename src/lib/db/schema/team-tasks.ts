@@ -10,6 +10,7 @@ export const teamTasks = pgTable("team_tasks", {
   assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   dueDate: timestamp("due_date", { withTimezone: true }),
+  resultNote: text("result_note"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
