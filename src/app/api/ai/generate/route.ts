@@ -12,8 +12,8 @@ const generateSchema = z.object({
   personaId: z.string().uuid(),
   platform: z.enum(["twitter", "instagram", "facebook", "linkedin", "tiktok", "reddit"]),
   contentType: z.enum(["post", "reply", "comment", "story", "reel"]).default("post"),
-  topic: z.string().optional(),
-  additionalInstructions: z.string().optional(),
+  topic: z.string().max(500).optional(),
+  additionalInstructions: z.string().max(1000).optional(),
   count: z.number().min(1).max(10).default(1),
   language: z.string().optional(),
   discoveredItemId: z.string().uuid().optional(),
@@ -112,7 +112,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       results,
-      prompt,
       model: "gemini-2.5-flash-lite",
     });
   } catch (error: unknown) {

@@ -13,7 +13,7 @@ const generateFromDiscoverySchema = z.object({
   personaId: z.string().uuid(),
   platform: z.enum(["twitter", "instagram", "facebook", "linkedin", "tiktok", "reddit"]),
   language: z.string().optional(),
-  additionalInstructions: z.string().optional(),
+  additionalInstructions: z.string().max(1000).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
         title: item.title,
         url: item.url,
       },
-      prompt,
       model: "gemini-2.5-flash-lite",
     });
   } catch (error: unknown) {

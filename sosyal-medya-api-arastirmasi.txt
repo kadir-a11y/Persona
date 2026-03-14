@@ -4,7 +4,7 @@ Tarih: 13.03.2026
 Proje: Persona (Hayalet)
 
 NOT: Her kullanıcının ayrı API key almasına GEREK YOK.
-Tek bir developer app oluşturulur, kullanıcılar OAuth ile kendi hesaplarını bağlar.
+Tek bir developer app oluşturulur, kullanıcılar OAuth ile kendi hesaplarını bağlar. AMA ALABİLDİĞİMİZİ ALALIM ÇOĞU KOLAY ÇÜNKÜ AUTH ÇOK YAPARSAK SIKINTI OLABİLİR. DEV APP DA YAPILSIN TABİ ...
 Token'lar social_accounts tablosunda saklanır.
 
 ====================================================

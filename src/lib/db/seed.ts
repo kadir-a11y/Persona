@@ -11,13 +11,23 @@ const db = drizzle(client, { schema });
 async function seed() {
   console.log("Seeding database...");
 
-  // Create admin user
-  const passwordHash = await hash("admin123", 12);
+  // Admin credentials from environment or secure defaults
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@hayalet.dev";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    console.error("ADMIN_PASSWORD environment variable is required for seeding.");
+    console.error("Set ADMIN_PASSWORD in your .env file and try again.");
+    await client.end();
+    process.exit(1);
+  }
+
+  const passwordHash = await hash(adminPassword, 12);
   const [user] = await db
     .insert(schema.users)
     .values({
       name: "Admin",
-      email: "admin@hayalet.dev",
+      email: adminEmail,
       passwordHash,
     })
     .onConflictDoNothing()
@@ -262,8 +272,7 @@ async function seed() {
 
   console.log("Created activity logs");
   console.log("\nSeed complete! Login with:");
-  console.log("  Email: admin@hayalet.dev");
-  console.log("  Password: admin123");
+  console.log(`  Email: ${adminEmail}`);
 
   await client.end();
 }
