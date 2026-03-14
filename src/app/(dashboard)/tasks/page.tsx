@@ -289,7 +289,7 @@ export default function TasksPage() {
       </div>
 
       {/* Team Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {teamUsers.map((user) => {
           const userTasks = tasks.filter((t) => t.task.assignedTo === user.id);
           const active = userTasks.filter((t) => ["pending", "in_progress"].includes(t.task.status)).length;
@@ -299,24 +299,31 @@ export default function TasksPage() {
           return (
             <Card key={user.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-10 w-10 shrink-0 mt-0.5">
                     <AvatarFallback className={`text-sm font-medium ${userColorMap[user.id] || ""}`}>
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{user.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{role}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{user.name}</p>
+                      <Badge variant="outline" className="text-xs font-normal shrink-0">{role}</Badge>
+                    </div>
+                    {user.responsibilities && (
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {user.responsibilities}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2 text-xs">
+                      <span className="flex items-center gap-1 text-blue-600">
+                        <Clock className="h-3 w-3" /> {active} aktif
+                      </span>
+                      <span className="flex items-center gap-1 text-green-600">
+                        <CheckCircle2 className="h-3 w-3" /> {done} bitti
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 mt-3 text-xs">
-                  <span className="flex items-center gap-1 text-blue-600">
-                    <Clock className="h-3 w-3" /> {active} aktif
-                  </span>
-                  <span className="flex items-center gap-1 text-green-600">
-                    <CheckCircle2 className="h-3 w-3" /> {done} bitti
-                  </span>
                 </div>
               </CardContent>
             </Card>
