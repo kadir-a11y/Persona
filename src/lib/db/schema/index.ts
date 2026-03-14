@@ -30,6 +30,7 @@ export { workspaceSessions } from "./workspace-sessions";
 export { workspaceResponses } from "./workspace-responses";
 export { organicActivityConfig, organicActivityLog } from "./organic-activity";
 export { userPreferences } from "./user-preferences";
+export { teamTasks } from "./team-tasks";
 
 import { users } from "./users";
 import { personas } from "./personas";
@@ -61,6 +62,7 @@ import { workspaceSessions } from "./workspace-sessions";
 import { workspaceResponses } from "./workspace-responses";
 import { organicActivityConfig, organicActivityLog } from "./organic-activity";
 import { userPreferences } from "./user-preferences";
+import { teamTasks } from "./team-tasks";
 
 // ── Users relations ──────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
@@ -75,6 +77,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   bugReports: many(bugReports),
   monitoredTopics: many(monitoredTopics),
   preferences: many(userPreferences),
+  assignedTasks: many(teamTasks),
 }));
 
 // ── User preferences relations ──────────────────────────────────────
@@ -435,6 +438,18 @@ export const organicActivityConfigRelations = relations(organicActivityConfig, (
     references: [personas.id],
   }),
   logs: many(organicActivityLog),
+}));
+
+// ── Team tasks relations ────────────────────────────────────────────
+export const teamTasksRelations = relations(teamTasks, ({ one }) => ({
+  assignedUser: one(users, {
+    fields: [teamTasks.assignedTo],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [teamTasks.createdBy],
+    references: [users.id],
+  }),
 }));
 
 // ── Organic activity log relations ───────────────────────────────────

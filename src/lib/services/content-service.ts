@@ -101,6 +101,7 @@ export async function updateContentItem(
       scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
       updatedAt: new Date(),
     })
+    .where(eq(contentItems.id, id))
     .returning();
 
   return item;
