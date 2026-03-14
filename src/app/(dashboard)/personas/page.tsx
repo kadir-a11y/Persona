@@ -330,6 +330,11 @@ function PersonaRow({
           )}
         </TableCell>
       )}
+      {visibleColumns.includes("city") && (
+        <TableCell>
+          <span className="text-xs text-muted-foreground">{persona.city || "-"}</span>
+        </TableCell>
+      )}
       {visibleColumns.includes("status") && (
         <TableCell>
           <Badge
@@ -362,6 +367,41 @@ function PersonaRow({
               </Badge>
             )}
           </div>
+        </TableCell>
+      )}
+      {visibleColumns.includes("timezone") && (
+        <TableCell>
+          <span className="text-xs text-muted-foreground">{persona.timezone || "-"}</span>
+        </TableCell>
+      )}
+      {visibleColumns.includes("activeHours") && (
+        <TableCell>
+          <span className="text-xs text-muted-foreground">
+            {persona.activeHoursStart !== undefined && persona.activeHoursEnd !== undefined
+              ? `${String(persona.activeHoursStart).padStart(2, "0")}:00–${String(persona.activeHoursEnd).padStart(2, "0")}:00`
+              : "-"}
+          </span>
+        </TableCell>
+      )}
+      {visibleColumns.includes("maxPostsPerDay") && (
+        <TableCell>
+          <span className="text-xs text-muted-foreground">{persona.maxPostsPerDay ?? "-"}</span>
+        </TableCell>
+      )}
+      {visibleColumns.includes("isVerified") && (
+        <TableCell>
+          {persona.isVerified ? (
+            <BadgeCheck className="h-4 w-4 text-blue-500" />
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.includes("createdAt") && (
+        <TableCell>
+          <span className="text-xs text-muted-foreground">
+            {persona.createdAt ? new Date(persona.createdAt).toLocaleDateString("tr-TR") : "-"}
+          </span>
         </TableCell>
       )}
     </TableRow>
@@ -1427,8 +1467,14 @@ function PersonasPage() {
                 { key: "birthDate", label: "Doğum Tarihi" },
                 { key: "language", label: "Dil" },
                 { key: "country", label: "Ülke" },
+                { key: "city", label: "Şehir" },
                 { key: "status", label: "Durum" },
                 { key: "tags", label: "Etiketler" },
+                { key: "timezone", label: "Zaman Dilimi" },
+                { key: "activeHours", label: "Aktif Saatler" },
+                { key: "maxPostsPerDay", label: "Günlük Post Limiti" },
+                { key: "isVerified", label: "Doğrulanmış" },
+                { key: "createdAt", label: "Oluşturulma Tarihi" },
               ].map((col) => (
                 <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded cursor-pointer">
                   <Checkbox
@@ -1745,8 +1791,14 @@ function PersonasPage() {
                 {visibleColumns.includes("birthDate") && <TableHead className="w-[100px]">Doğum Tarihi</TableHead>}
                 {visibleColumns.includes("language") && <TableHead className="w-[60px]">Dil</TableHead>}
                 {visibleColumns.includes("country") && <TableHead className="w-[130px]">Ülke</TableHead>}
+                {visibleColumns.includes("city") && <TableHead className="w-[120px]">Şehir</TableHead>}
                 {visibleColumns.includes("status") && <TableHead className="w-[80px]">Durum</TableHead>}
                 {visibleColumns.includes("tags") && <TableHead className="w-[200px]">Etiketler</TableHead>}
+                {visibleColumns.includes("timezone") && <TableHead className="w-[150px]">Zaman Dilimi</TableHead>}
+                {visibleColumns.includes("activeHours") && <TableHead className="w-[110px]">Aktif Saatler</TableHead>}
+                {visibleColumns.includes("maxPostsPerDay") && <TableHead className="w-[80px]">Post/Gün</TableHead>}
+                {visibleColumns.includes("isVerified") && <TableHead className="w-[80px]">Doğrulanmış</TableHead>}
+                {visibleColumns.includes("createdAt") && <TableHead className="w-[120px]">Oluşturulma</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
